@@ -36,8 +36,39 @@ IronTracker позволяет атлетам вести дневники тре
 - **Инфраструктура**: Docker, Docker Compose
 - **Качество кода**: `ruff`, `mypy` (strict mode), `pytest` + `pytest-asyncio`
 
+## Запуск инфраструктуры (Docker)
+
+Для локальной разработки микросервисов все необходимые базы данных и брокеры сообщений разворачиваются через Docker Compose:
+
+1. Скопируйте файл конфигурации окружения:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Запустите инфраструктуру:
+   ```bash
+   docker compose up -d
+   ```
+
+3. *(Опционально)* Для запуска вместе с веб-интерфейсом Kafka UI:
+   ```bash
+   docker compose --profile tools up -d
+   ```
+
+### Доступные сервисы и порты:
+| Сервис | Порт хоста | Назначение / Сервис IronTracker |
+|---|---|---|
+| **PostgreSQL** | `5432` | Workout Service (реляционные данные, Outbox) |
+| **Redis** | `6379` | Leaderboard Service (ZSET рейтинги) |
+| **MongoDB** | `27017` | Analytics Service (Time Series аналитика) |
+| **Apache Kafka (KRaft)** | `9092` | Шина бизнес-событий (факты) |
+| **RabbitMQ AMQP** | `5672` | Очереди команд (Notification Service) |
+| **RabbitMQ Management UI** | `15672` | Панель управления RabbitMQ (`http://localhost:15672`) |
+| **Kafka UI (профиль tools)** | `8085` | Веб-интерфейс Kafka (`http://localhost:8085`) |
+
 ## Правила репозитория
 
 - Вся работа над задачами ведется согласно Notion Kanban Board.
 - Ветвление: Git Flow (`<type>/<task-id>-<short-description>`).
 - Сообщения коммитов: Conventional Commits (`<type>(<scope>): <subject>`).
+
