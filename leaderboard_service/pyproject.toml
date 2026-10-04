@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "irontracker-leaderboard-service"
+version = "0.1.0"
+description = "IronTracker Leaderboard Service (FastAPI + Redis ZSET)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.28.0",
+    "pydantic>=2.7.0",
+    "redis>=5.0.3",
+    "python-dotenv>=1.0.1",
+]

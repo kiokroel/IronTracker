@@ -74,3 +74,7 @@ mongo_data/
 redis_data/
 *.db
 *.sqlite3
+
+# Agent workspace artifacts
+_workspace/
+_workspace_archive*/

@@ -1,0 +1,38 @@
+# Configuration for Ruff linter and formatter
+# Tech stack: Python 3.12+, IronTracker monorepo
+
+line-length = 100
+target-version = "py312"
+
+exclude = [
+    ".git",
+    ".venv",
+    ".agents",
+    "_workspace",
+]
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # Pyflakes
+    "W",   # pycodestyle warnings
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+]
+ignore = []
+
+[lint.isort]
+combine-as-imports = true
+known-first-party = [
+    "workout_service",
+    "leaderboard_service",
+    "analytics_service",
+    "notification_service",
+    "shared",
+    "packages",
+]
+
+[format]
+quote-style = "double"
+indent-style = "space"
