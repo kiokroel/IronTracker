@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "irontracker-analytics-service"
+version = "0.1.0"
+description = "IronTracker Analytics Service (Async Consumer + Kafka + MongoDB Time Series)"
+requires-python = ">=3.12"
+dependencies = [
+    "motor>=3.4.0",
+    "aiokafka>=0.10.0",
+    "pydantic>=2.7.0",
+    "python-dotenv>=1.0.1",
+]
