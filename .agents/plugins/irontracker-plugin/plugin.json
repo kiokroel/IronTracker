@@ -1,0 +1,5 @@
+{
+  "name": "irontracker-plugin",
+  "description": "IronTracker multi-agent harness: Subagents (Developer, Tester, Critic) and skills for microservices development, testing, and architectural auditing.",
+  "version": "1.0.0"
+}
