@@ -1,18 +1,20 @@
 ---
 name: test-runner
-description: "Экспертное руководство по написанию и запуску тестов для микросервисов IronTracker согласно 03-testing.md. Охватывает pytest-asyncio, httpx.AsyncClient, тестирование атомарности Transactional Outbox (commit vs rollback), валидацию JSONB и запуск ruff/mypy. Используй при запросах: запусти тесты, протестируй эндпоинт, pytest, ruff, mypy, напиши интеграционный тест, проверь outbox."
+description: "Экспертное руководство по написанию и запуску тестов и аудиту безопасности для микросервисов IronTracker согласно 03-testing.md. Охватывает pytest-asyncio, httpx.AsyncClient, тестирование атомарности Transactional Outbox (commit vs rollback), валидацию JSONB, проверки безопасности (bandit, pip-audit, IDOR, инъекции) и запуск ruff/mypy. Используй при запросах: запусти тесты, протестируй эндпоинт, pytest, ruff, mypy, bandit, pip-audit, безопасность, напиши интеграционный тест, проверь outbox."
 ---
 
 # Test Runner Skill — IronTracker
 
-Данный навык определяет методологию написания, структурирования и запуска тестов для компонентов бэкенда IronTracker.
+Данный навык определяет методологию написания, структурирования и запуска тестов, а также проверок информационной безопасности для компонентов бэкенда IronTracker.
 
-## Стек тестирования
+## Стек тестирования и безопасности
 - Фреймворк: `pytest`
 - Асинхронные тесты: `pytest-asyncio` (с `asyncio_mode = "auto"`)
 - HTTP клиент: `httpx.AsyncClient`
 - Линтинг и форматирование: `ruff check .`, `ruff format --check .`
 - Статическая типизация: `mypy --strict .`
+- Статический анализ безопасности (SAST): `bandit`
+- Аудит уязвимостей сторонних зависимостей: `pip-audit`
 
 ---
 
@@ -100,19 +102,51 @@ async def test_create_workout_invalid_metric_fails() -> None:
 
 ---
 
-## 3. Команды запуска и проверки качества
+## 3. Тестирование безопасности и поиск уязвимостей (Security QA)
 
-Субагент `iron-tester` обязан выполнить:
+Тестировщик обязан верифицировать защищенность системы от уязвимостей и атак:
 
-1. **Линтинг:**
+### Проверка разграничения прав и защита от IDOR:
+```python
+@pytest.mark.asyncio
+async def test_user_cannot_access_foreign_workout() -> None:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Попытка доступа к ресурсу другого пользователя должна отклоняться
+        response = await client.get(
+            "/workouts/foreign-workout-id",
+            headers={"X-User-ID": "user-attacker-id"}
+        )
+        assert response.status_code in (403, 404)
+```
+
+### Защита от инъекций и фаззинг граничных значений:
+- Все эндпоинты с JSONB и поисковыми запросами должны тестироваться на передачу специальных символов, невалидных payload и попытки внедрения инъекций.
+
+---
+
+## 4. Команды запуска проверок качества и безопасности
+
+Субагент `iron-tester` обязан выполнить полный цикл проверок:
+
+1. **Линтинг и форматирование:**
    ```powershell
    ruff check .
+   ruff format --check .
    ```
 2. **Проверка типов в строгом режиме:**
    ```powershell
    mypy --strict .
    ```
-3. **Запуск тестового набора:**
+3. **Статический анализ безопасности (SAST Bandit):**
+   ```powershell
+   bandit -r workout_service/ leaderboard_service/ analytics_service/ notification_service/ shared/ tests/ -ll
+   ```
+4. **Аудит безопасности зависимостей (CVE Scan):**
+   ```powershell
+   pip-audit
+   ```
+5. **Запуск тестового набора:**
    ```powershell
    pytest -v
    ```
@@ -122,21 +156,25 @@ async def test_create_workout_invalid_metric_fails() -> None:
 ## Формат отчета тестирования (`_workspace/02_tester_report.md`)
 
 ```markdown
-# Отчет тестирования IronTracker
+# Отчет тестирования и безопасности IronTracker (QA Report)
 
 ## Статус: PASS / FAIL
 
-## Результаты проверок качества:
-- **Ruff:** 0 errors
+## Результаты проверок качества и безопасности:
+- **Ruff (Linter & Format):** 0 errors
 - **Mypy strict:** 0 errors
-- **Pytest:** 14 passed, 0 failed
+- **Bandit (SAST Security):** 0 issues identified
+- **pip-audit (CVE Scan):** 0 vulnerabilities found
+- **Pytest:** X passed, 0 failed
 
 ## Проверенные критические сценарии:
 - [x] Transactional Outbox: запись создана со статусом `pending` при успешном коммите
 - [x] Transactional Outbox: запись отсутствует при rollback
 - [x] Pydantic v2 Discriminated Unions: 422 при некорректной схеме
 - [x] Лидерборд: корректность обновления Redis ZSET
+- [x] Security: защита от IDOR и несанкционированного доступа
+- [x] Security: параметризация запросов и защита от инъекций
 
-## Стектрейсы (при наличии падений):
+## Стектрейсы и отчеты уязвимостей (при наличии падений):
 [Нет ошибок]
 ```
