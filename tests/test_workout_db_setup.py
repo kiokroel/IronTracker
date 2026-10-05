@@ -164,11 +164,21 @@ def test_alembic_configuration_files_exist() -> None:
 
 
 def test_alembic_offline_sql_generation() -> None:
-    """Verify Alembic can successfully generate offline migration SQL."""
+    """Verify Alembic can successfully generate offline migration SQL for upgrade and downgrade."""
     alembic_ini = PROJECT_ROOT / "workout_service" / "alembic.ini"
     cfg = Config(str(alembic_ini))
     # sql=True triggers offline migration execution
     command.upgrade(cfg, "head", sql=True)
+    command.downgrade(cfg, "head:base", sql=True)
+
+
+def test_alembic_online_migration_cycle() -> None:
+    """Verify Alembic migration can be downgraded and upgraded against the database."""
+    alembic_ini = PROJECT_ROOT / "workout_service" / "alembic.ini"
+    cfg = Config(str(alembic_ini))
+    command.downgrade(cfg, "-1")
+    command.upgrade(cfg, "head")
+    command.current(cfg)
 
 
 @pytest.mark.asyncio
@@ -263,7 +273,9 @@ def test_workout_service_exports() -> None:
 
     expected_exports = {
         "Base",
+        "OutboxModel",
         "Settings",
+        "WorkoutModel",
         "app",
         "engine",
         "get_db_session",
