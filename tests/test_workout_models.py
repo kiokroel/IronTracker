@@ -302,3 +302,15 @@ async def test_models_database_defaults() -> None:
         await session.delete(workout)
         await session.delete(outbox)
         await session.commit()
+
+
+def test_models_submodule_imports() -> None:
+    """Verify models can be imported from workout_service.src.models subpackages."""
+    from workout_service.src.models import OutboxModel as SubOutbox, WorkoutModel as SubWorkout
+    from workout_service.src.models.outbox import OutboxModel as DirectOutbox
+    from workout_service.src.models.workout import WorkoutModel as DirectWorkout
+
+    assert SubOutbox is OutboxModel
+    assert SubWorkout is WorkoutModel
+    assert DirectOutbox is OutboxModel
+    assert DirectWorkout is WorkoutModel

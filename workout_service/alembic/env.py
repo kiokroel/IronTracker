@@ -8,8 +8,8 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from workout_service.src.config import get_settings
-from workout_service.src.database import Base
+from workout_service.src.core.config import get_settings
+from workout_service.src.core.database import Base
 from workout_service.src.models import OutboxModel, WorkoutModel  # noqa: F401
 
 config = context.config

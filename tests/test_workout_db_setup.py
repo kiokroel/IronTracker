@@ -12,7 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from workout_service.src import Base, Settings, app, get_db_session, get_settings
-from workout_service.src.database import create_engine_and_session_factory
+from workout_service.src.core.database import create_engine_and_session_factory
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -133,7 +133,7 @@ async def test_get_db_session_rollback_on_error(monkeypatch: pytest.MonkeyPatch)
     mock_cm.__aexit__.return_value = None
     mock_factory = MagicMock(return_value=mock_cm)
 
-    monkeypatch.setattr("workout_service.src.database.async_session_factory", mock_factory)
+    monkeypatch.setattr("workout_service.src.core.database.async_session_factory", mock_factory)
 
     gen = get_db_session()
     session = await anext(gen)
@@ -277,6 +277,7 @@ def test_workout_service_exports() -> None:
         "Settings",
         "WorkoutModel",
         "app",
+        "async_session_factory",
         "engine",
         "get_db_session",
         "get_settings",

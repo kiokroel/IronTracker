@@ -32,4 +32,15 @@ trigger: always_on
 - Внутри каждого микросервиса содержатся:
   - `Dockerfile` (базовый с комментарием-заглушкой);
   - `pyproject.toml` (независимый список зависимостей сервиса);
-  - `src/` (директория с исходным кодом: `src/__init__.py`, `src/main.py` или `src/worker.py`).
+  - `alembic.ini` и папка `alembic/` (для сервисов с БД);
+  - `src/` — строгая слоистая структура:
+    - `src/__init__.py`;
+    - `src/main.py` (или `src/worker.py` для воркеров);
+    - `src/dependencies.py` (зависимости FastAPI: `get_db`, контекст пользователя);
+    - `src/core/` (`config.py`, `database.py`, `security.py`, `__init__.py`);
+    - `src/models/` (`workout.py`, `outbox.py`, `__init__.py` с реэкспортом);
+    - `src/schemas/` (`workout.py`, `__init__.py` с DTO и Discriminated Unions);
+    - `src/repositories/` (`base.py` с `BaseRepository`, доменные репозитории, `__init__.py`);
+    - `src/controllers/` (бизнес-логика, сервисы, `__init__.py`);
+    - `src/routes/` (роутеры FastAPI, `__init__.py` с агрегирующим `router`).
+- Запрещено плоское сваливание файлов в корень `src/` без разделения по слоям.

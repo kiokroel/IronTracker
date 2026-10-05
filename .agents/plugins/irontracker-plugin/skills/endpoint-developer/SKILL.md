@@ -7,20 +7,23 @@ description: "Экспертное руководство по разработ�
 
 Данный навык определяет строгий пошаговый порядок создания и расширения API эндпоинтов в микросервисах IronTracker.
 
-## Архитектурные принципы слоя API
+## Архитектурные принципы слоя API (эталонная структура)
 - В начале каждого файла схем и моделей обязателен импорт:
   ```python
   from __future__ import annotations
   ```
-- **Слоистая изоляция:**
-  1. `schemas.py` — DTO запроса и ответа на Pydantic v2.
-  2. `services.py` — Чистая бизнес-логика. Не оперирует объектами `Request` из FastAPI.
-  3. `repositories.py` — Асинхронная работа с БД через SQLAlchemy 2.0 (`select`, `insert`, `update`).
-  4. `router.py` — FastAPI роутер, инъекция зависимостей (`Depends`), вызов сервиса, HTTP статус-коды.
+- **Слоистая модульная изоляция:**
+  1. `src/core/` — `config.py` (настройки Pydantic BaseSettings), `database.py` (engine, async_sessionmaker, Base DeclarativeBase).
+  2. `src/dependencies.py` — общие зависимости FastAPI (`get_db` сессия, контекст пользователя).
+  3. `src/models/` — ORM модели (`src/models/workout.py`, `src/models/outbox.py`, `src/models/__init__.py`).
+  4. `src/schemas/` — DTO запроса и ответа на Pydantic v2 с Discriminated Unions (`src/schemas/workout.py`, `src/schemas/__init__.py`).
+  5. `src/repositories/` — `src/repositories/base.py` с обобщенным `BaseRepository[T, CreateSchemaType, UpdateSchemaType]`, и доменные репозитории (`src/repositories/workout.py`).
+  6. `src/controllers/` (или `src/services/`) — чистая бизнес-логика (`src/controllers/workout.py`). Не оперирует объектами `Request` FastAPI.
+  7. `src/routes/` — FastAPI роутеры (`src/routes/workouts.py`), агрегированные в `src/routes/__init__.py`.
 
 ---
 
-## 1. Слой DTO и валидация JSONB (`schemas.py`)
+## 1. Слой DTO и валидация JSONB (`src/schemas/workout.py`)
 
 Для полиморфных метрик (силовые упражнения vs кардио) в PostgreSQL `JSONB` обязательно использование **Discriminated Unions** в Pydantic v2:
 
@@ -66,9 +69,9 @@ class WorkoutResponse(BaseModel):
 
 ---
 
-## 2. Слой репозитория и Transactional Outbox (`repositories.py`)
+## 2. Слой репозитория и Transactional Outbox (`src/repositories/workout.py`)
 
-В **Workout Service** сохранение сущности и события в таблицу `outbox` ОБЯЗАТЕЛЬНО выполняется в одной транзакции:
+Репозиторий наследуется от обобщенного `BaseRepository`:
 
 ```python
 from __future__ import annotations
@@ -77,9 +80,14 @@ from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-class WorkoutRepository:
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
+from src.models.workout import WorkoutModel
+from src.models.outbox import OutboxModel
+from src.repositories.base import BaseRepository
+from src.schemas.workout import CreateWorkoutRequest, WorkoutResponse
+
+class WorkoutRepository(BaseRepository[WorkoutModel, CreateWorkoutRequest, WorkoutResponse]):
+    def __init__(self, db: AsyncSession) -> None:
+        super().__init__(db, WorkoutModel)
 
     async def create_workout_with_outbox(
         self,
@@ -96,7 +104,7 @@ class WorkoutRepository:
             metrics=metrics_dict,
             created_at=datetime.now(timezone.utc),
         )
-        self.session.add(workout)
+        self.db.add(workout)
 
         # Transactional Outbox запись в той же транзакции:
         outbox_entry = OutboxModel(
@@ -107,28 +115,29 @@ class WorkoutRepository:
             retry_count=0,
             created_at=datetime.now(timezone.utc),
         )
-        self.session.add(outbox_entry)
+        self.db.add(outbox_entry)
 
-        await self.session.commit()
-        await self.session.refresh(workout)
+        await self.db.commit()
+        await self.db.refresh(workout)
         return workout
 ```
 
 ---
 
-## 3. Сервисный слой (`services.py`)
+## 3. Контроллер / Слой бизнес-логики (`src/controllers/workout.py`)
 
-Сервис принимает валидированный DTO, формирует контракт события и вызывает репозиторий:
+Контроллер принимает валидированный DTO, формирует контракт события и вызывает репозиторий:
 
 ```python
 from __future__ import annotations
 import uuid
-from schemas import CreateWorkoutRequest, WorkoutResponse
-from repositories import WorkoutRepository
+from sqlalchemy.ext.asyncio import AsyncSession
+from src.schemas.workout import CreateWorkoutRequest, WorkoutResponse
+from src.repositories.workout import WorkoutRepository
 
-class WorkoutService:
-    def __init__(self, repo: WorkoutRepository) -> None:
-        self.repo = repo
+class WorkoutController:
+    def __init__(self, db: AsyncSession) -> None:
+        self.repo = WorkoutRepository(db)
 
     async def create_workout(self, dto: CreateWorkoutRequest) -> WorkoutResponse:
         metrics_dump = dto.metrics.model_dump()
@@ -150,27 +159,25 @@ class WorkoutService:
 
 ---
 
-## 4. Контроллер / Роутер (`router.py`)
+## 4. Маршрутизация FastAPI (`src/routes/workouts.py`)
 
 ```python
 from __future__ import annotations
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from schemas import CreateWorkoutRequest, WorkoutResponse
-from services import WorkoutService
-from repositories import WorkoutRepository
-from database import get_async_session
+from src.schemas.workout import CreateWorkoutRequest, WorkoutResponse
+from src.controllers.workout import WorkoutController
+from src.dependencies import get_db
 
 router = APIRouter(prefix="/workouts", tags=["Workouts"])
 
 @router.post("", response_model=WorkoutResponse, status_code=status.HTTP_201_CREATED)
 async def create_workout_endpoint(
     request: CreateWorkoutRequest,
-    session: AsyncSession = Depends(get_async_session),
+    db: AsyncSession = Depends(get_db),
 ) -> WorkoutResponse:
-    repo = WorkoutRepository(session)
-    service = WorkoutService(repo)
-    return await service.create_workout(request)
+    controller = WorkoutController(db)
+    return await controller.create_workout(request)
 ```
 
 ---

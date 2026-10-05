@@ -82,6 +82,22 @@ def test_required_monorepo_files_exist() -> None:
         "workout_service/pyproject.toml",
         "workout_service/src/__init__.py",
         "workout_service/src/main.py",
+        "workout_service/src/dependencies.py",
+        "workout_service/src/core/__init__.py",
+        "workout_service/src/core/config.py",
+        "workout_service/src/core/database.py",
+        "workout_service/src/models/__init__.py",
+        "workout_service/src/models/workout.py",
+        "workout_service/src/models/outbox.py",
+        "workout_service/src/schemas/__init__.py",
+        "workout_service/src/schemas/workout.py",
+        "workout_service/src/repositories/__init__.py",
+        "workout_service/src/repositories/base.py",
+        "workout_service/src/repositories/workout.py",
+        "workout_service/src/controllers/__init__.py",
+        "workout_service/src/controllers/workout.py",
+        "workout_service/src/routes/__init__.py",
+        "workout_service/src/routes/workouts.py",
         "leaderboard_service/Dockerfile",
         "leaderboard_service/pyproject.toml",
         "leaderboard_service/src/__init__.py",
@@ -123,6 +139,16 @@ def test_required_monorepo_files_exist() -> None:
         "Legacy requirements.txt must not exist; each service uses pyproject.toml"
     )
 
+    flat_files = [
+        "workout_service/src/config.py",
+        "workout_service/src/database.py",
+        "workout_service/src/models.py",
+    ]
+    for flat_file in flat_files:
+        assert not (PROJECT_ROOT / flat_file).exists(), (
+            f"Flat file {flat_file} must not exist; layered service architecture is required"
+        )
+
 
 def test_service_pyproject_configurations() -> None:
     """Verify that each microservice has independent pyproject.toml with required dependencies."""
@@ -155,6 +181,22 @@ def test_all_modules_can_be_imported() -> None:
     modules_to_import = [
         "workout_service.src",
         "workout_service.src.main",
+        "workout_service.src.dependencies",
+        "workout_service.src.core",
+        "workout_service.src.core.config",
+        "workout_service.src.core.database",
+        "workout_service.src.models",
+        "workout_service.src.models.workout",
+        "workout_service.src.models.outbox",
+        "workout_service.src.schemas",
+        "workout_service.src.schemas.workout",
+        "workout_service.src.repositories",
+        "workout_service.src.repositories.base",
+        "workout_service.src.repositories.workout",
+        "workout_service.src.controllers",
+        "workout_service.src.controllers.workout",
+        "workout_service.src.routes",
+        "workout_service.src.routes.workouts",
         "leaderboard_service.src",
         "leaderboard_service.src.main",
         "analytics_service.src",
