@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import DeclarativeBase
 
-from workout_service.src.config import get_settings
+from workout_service.src.core.config import get_settings
 
 
 class Base(DeclarativeBase):
@@ -47,7 +47,7 @@ def create_engine_and_session_factory(
 engine, async_session_factory = create_engine_and_session_factory()
 
 
-async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency yielding a scoped transactional async database session."""
     async with async_session_factory() as session:
         try:
@@ -55,3 +55,7 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
         except Exception:
             await session.rollback()
             raise
+
+
+# Backward-compatible alias for existing consumers
+get_db_session = get_db

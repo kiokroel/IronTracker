@@ -59,6 +59,17 @@ description: "Экспертное руководство по проведен�
   - Проверяй роуты FastAPI: отсутствие скрытых debug-ручек, эндпоинтов обхода прав доступа (`bypass_auth`, `backdoor`).
   - Проверяй результаты `bandit` и `pip-audit` из отчета тестировщика: 0 уязвимостей.
 
+### 8. Слоистая структура каталогов микросервисов (по образцу VKR)
+- **Правило:** Код сервиса обязан быть структурирован строго по слоям:
+  - `src/core/` (`config.py`, `database.py`, `security.py`);
+  - `src/models/` (`workout.py`, `outbox.py`, `__init__.py`);
+  - `src/schemas/` (`workout.py`, `__init__.py`);
+  - `src/repositories/` (`base.py`, `workout.py`, `__init__.py`);
+  - `src/controllers/` (бизнес-логика, `__init__.py`);
+  - `src/routes/` (`workouts.py`, `__init__.py`);
+  - `src/dependencies.py` (FastAPI зависимости).
+- **Запрещено:** Плоское сваливание моделей, конфигов, сессий и роутов в корень `src/`. Обнаружение плоских модулей вне соответствующих слоев — **REJECT**.
+
 ---
 
 ## Формат отчета аудита (`_workspace/03_critic_report.md`)
@@ -73,6 +84,7 @@ description: "Экспертное руководство по проведен�
 - [x] Discriminated Unions для JSONB: СООТВЕТСТВУЕТ
 - [x] Разделение брокеров (Kafka/RabbitMQ): СООТВЕТСТВУЕТ
 - [x] Асинхронный I/O (asyncpg, redis.asyncio): СООТВЕТСТВУЕТ
+- [x] Слоистая структура директорий (core, models, schemas, repositories, controllers, routes): СООТВЕТСТВУЕТ
 - [x] Безопасность (нет бэкдоров, хардкода секретов, Bandit 0, pip-audit 0): СООТВЕТСТВУЕТ
 - [x] Статическая типизация и линтинг: СООТВЕТСТВУЕТ
 - [x] Тесты (включая откат транзакций и проверки доступа): СООТВЕТСТВУЕТ

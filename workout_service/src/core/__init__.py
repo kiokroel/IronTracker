@@ -1,24 +1,23 @@
 from __future__ import annotations
 
-from workout_service.src.core.config import Settings, get_settings
+from workout_service.src.core.config import Settings, get_settings, settings
 from workout_service.src.core.database import (
     Base,
     async_session_factory,
+    create_engine_and_session_factory,
     engine,
+    get_db,
     get_db_session,
 )
-from workout_service.src.main import app
-from workout_service.src.models.outbox import OutboxModel
-from workout_service.src.models.workout import WorkoutModel
 
 __all__ = [
     "Base",
-    "OutboxModel",
     "Settings",
-    "WorkoutModel",
-    "app",
     "async_session_factory",
+    "create_engine_and_session_factory",
     "engine",
+    "get_db",
     "get_db_session",
     "get_settings",
+    "settings",
 ]
