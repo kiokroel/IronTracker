@@ -146,7 +146,7 @@ def test_required_monorepo_files_exist() -> None:
     ]
     for flat_file in flat_files:
         assert not (PROJECT_ROOT / flat_file).exists(), (
-            f"Flat file {flat_file} must not exist; layered VKR architecture is required"
+            f"Flat file {flat_file} must not exist; layered service architecture is required"
         )
 
 

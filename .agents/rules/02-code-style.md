@@ -33,7 +33,7 @@ trigger: always_on
   - `Dockerfile` (базовый с комментарием-заглушкой);
   - `pyproject.toml` (независимый список зависимостей сервиса);
   - `alembic.ini` и папка `alembic/` (для сервисов с БД);
-  - `src/` — строгая слоистая структура (по образцу VKR):
+  - `src/` — строгая слоистая структура:
     - `src/__init__.py`;
     - `src/main.py` (или `src/worker.py` для воркеров);
     - `src/dependencies.py` (зависимости FastAPI: `get_db`, контекст пользователя);
