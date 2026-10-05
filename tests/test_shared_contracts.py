@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Literal
 from uuid import UUID, uuid4
 
 import pytest
@@ -9,10 +10,16 @@ from pydantic import TypeAdapter, ValidationError
 from shared.contracts.src import (
     BaseCommand,
     BaseEvent,
+    BenchPressMetrics,
     CardioExerciseMetrics,
+    DeadliftMetrics,
+    RunningMetrics,
     SendAchievementNotificationCommand,
     SendNotificationCommand,
+    SquatMetrics,
+    SquatsMetrics,
     StrengthExerciseMetrics,
+    TreadmillMetrics,
     WorkoutCompletedEvent,
     WorkoutCreatedEvent,
     WorkoutMetrics,
@@ -87,11 +94,13 @@ def test_cardio_exercise_metrics_valid() -> None:
         distance_km=5.25,
         duration_minutes=30.0,
         heart_rate=145,
+        calories_burned=320,
     )
     assert metrics.exercise_type == "cardio"
     assert metrics.distance_km == 5.25
     assert metrics.duration_minutes == 30.0
     assert metrics.heart_rate == 145
+    assert metrics.calories_burned == 320
 
     data_json = metrics.model_dump_json()
     restored = CardioExerciseMetrics.model_validate_json(data_json)
@@ -122,30 +131,381 @@ def test_cardio_exercise_metrics_invalid(
         )
 
 
+def test_bench_press_metrics_valid() -> None:
+    """Verify valid bench press metrics creation and serialization."""
+    metrics = BenchPressMetrics(
+        weight=120.0,
+        sets=4,
+        reps=6,
+        rpe=8.5,
+        grip_width_cm=81.0,
+    )
+    assert metrics.exercise_type == "bench_press"
+    assert metrics.weight == 120.0
+    assert metrics.sets == 4
+    assert metrics.reps == 6
+    assert metrics.rpe == 8.5
+    assert metrics.grip_width_cm == 81.0
+
+    # Test alias tag 'benchpress'
+    metrics_alias = BenchPressMetrics(
+        exercise_type="benchpress",
+        weight=100.0,
+        sets=3,
+        reps=8,
+    )
+    assert metrics_alias.exercise_type == "benchpress"
+
+    data_json = metrics.model_dump_json()
+    restored = BenchPressMetrics.model_validate_json(data_json)
+    assert restored == metrics
+
+
+@pytest.mark.parametrize(
+    ("weight", "sets", "reps", "rpe", "grip_width_cm"),
+    [
+        (0.0, 3, 5, 8.0, 80.0),
+        (-10.0, 3, 5, 8.0, 80.0),
+        (100.0, 0, 5, 8.0, 80.0),
+        (100.0, 3, 0, 8.0, 80.0),
+        (100.0, 3, 5, 0.5, 80.0),
+        (100.0, 3, 5, 10.5, 80.0),
+        (100.0, 3, 5, 8.0, 0.0),
+        (100.0, 3, 5, 8.0, -5.0),
+    ],
+)
+def test_bench_press_metrics_invalid(
+    weight: float,
+    sets: int,
+    reps: int,
+    rpe: float,
+    grip_width_cm: float,
+) -> None:
+    """Verify validation errors for bench press metrics."""
+    with pytest.raises(ValidationError):
+        BenchPressMetrics(
+            weight=weight,
+            sets=sets,
+            reps=reps,
+            rpe=rpe,
+            grip_width_cm=grip_width_cm,
+        )
+
+
+def test_bench_press_metrics_extra_fields_forbidden() -> None:
+    """Verify unexpected fields are rejected in bench press metrics."""
+    with pytest.raises(ValidationError):
+        BenchPressMetrics(
+            weight=100.0,
+            sets=3,
+            reps=5,
+            extra_field="rejected",  # type: ignore[call-arg]
+        )
+
+
+def test_squat_metrics_valid() -> None:
+    """Verify valid squat metrics creation and serialization."""
+    metrics = SquatMetrics(
+        weight=150.0,
+        sets=5,
+        reps=5,
+        rpe=9.0,
+        stance="wide",
+    )
+    assert metrics.exercise_type == "squats"
+    assert metrics.weight == 150.0
+    assert metrics.stance == "wide"
+    assert SquatsMetrics is SquatMetrics
+
+    # Test alias tag 'squat' and stances
+    valid_stances: tuple[Literal["narrow", "medium", "wide"] | None, ...] = (
+        "narrow",
+        "medium",
+        "wide",
+        None,
+    )
+    for stance in valid_stances:
+        sm = SquatsMetrics(
+            exercise_type="squat",
+            weight=120.0,
+            sets=3,
+            reps=8,
+            stance=stance,
+        )
+        assert sm.exercise_type == "squat"
+        assert sm.stance == stance
+
+    data_json = metrics.model_dump_json()
+    restored = SquatMetrics.model_validate_json(data_json)
+    assert restored == metrics
+
+
+def test_squat_metrics_invalid_stance() -> None:
+    """Verify invalid stance is rejected in squat metrics."""
+    with pytest.raises(ValidationError):
+        SquatMetrics(
+            weight=100.0,
+            sets=3,
+            reps=5,
+            stance="ultra_wide",  # type: ignore[arg-type]
+        )
+
+
+def test_squat_metrics_extra_fields_forbidden() -> None:
+    """Verify unexpected fields are rejected in squat metrics."""
+    with pytest.raises(ValidationError):
+        SquatMetrics(
+            weight=100.0,
+            sets=3,
+            reps=5,
+            extra_field="rejected",  # type: ignore[call-arg]
+        )
+
+
+def test_deadlift_metrics_valid() -> None:
+    """Verify valid deadlift metrics creation and serialization."""
+    metrics = DeadliftMetrics(
+        weight=200.0,
+        sets=1,
+        reps=5,
+        rpe=9.5,
+        deadlift_style="sumo",
+    )
+    assert metrics.exercise_type == "deadlift"
+    assert metrics.weight == 200.0
+    assert metrics.deadlift_style == "sumo"
+
+    metrics_conv = DeadliftMetrics(
+        weight=180.0,
+        sets=3,
+        reps=5,
+        deadlift_style="conventional",
+    )
+    assert metrics_conv.deadlift_style == "conventional"
+
+    data_json = metrics.model_dump_json()
+    restored = DeadliftMetrics.model_validate_json(data_json)
+    assert restored == metrics
+
+
+def test_deadlift_metrics_invalid_style() -> None:
+    """Verify invalid deadlift style is rejected."""
+    with pytest.raises(ValidationError):
+        DeadliftMetrics(
+            weight=180.0,
+            sets=3,
+            reps=5,
+            deadlift_style="romanian",  # type: ignore[arg-type]
+        )
+
+
+def test_deadlift_metrics_extra_fields_forbidden() -> None:
+    """Verify unexpected fields are rejected in deadlift metrics."""
+    with pytest.raises(ValidationError):
+        DeadliftMetrics(
+            weight=100.0,
+            sets=3,
+            reps=5,
+            extra_field="rejected",  # type: ignore[call-arg]
+        )
+
+
+def test_treadmill_metrics_valid() -> None:
+    """Verify valid treadmill metrics creation and serialization."""
+    metrics = TreadmillMetrics(
+        distance_km=7.5,
+        duration_minutes=35.0,
+        heart_rate=155,
+        incline_percentage=3.0,
+        speed_kmh=12.5,
+        pace_min_per_km=4.8,
+        calories_burned=420,
+    )
+    assert metrics.exercise_type == "treadmill"
+    assert metrics.distance_km == 7.5
+    assert metrics.duration_minutes == 35.0
+    assert metrics.heart_rate == 155
+    assert metrics.incline_percentage == 3.0
+    assert metrics.speed_kmh == 12.5
+    assert metrics.pace_min_per_km == 4.8
+    assert metrics.calories_burned == 420
+    assert RunningMetrics is TreadmillMetrics
+
+    # Test alias tag 'running'
+    metrics_run = RunningMetrics(
+        exercise_type="running",
+        distance_km=10.0,
+        duration_minutes=50.0,
+    )
+    assert metrics_run.exercise_type == "running"
+
+    data_json = metrics.model_dump_json()
+    restored = TreadmillMetrics.model_validate_json(data_json)
+    assert restored == metrics
+
+
+@pytest.mark.parametrize(
+    ("incline", "speed", "pace"),
+    [
+        (-1.0, 10.0, 5.0),  # incline < 0
+        (41.0, 10.0, 5.0),  # incline > 40
+        (2.0, 0.0, 5.0),  # speed <= 0
+        (2.0, -5.0, 5.0),  # speed < 0
+        (2.0, 10.0, 0.0),  # pace <= 0
+        (2.0, 10.0, -1.0),  # pace < 0
+    ],
+)
+def test_treadmill_metrics_invalid(
+    incline: float,
+    speed: float,
+    pace: float,
+) -> None:
+    """Verify boundary and invalid values are rejected for treadmill metrics."""
+    with pytest.raises(ValidationError):
+        TreadmillMetrics(
+            distance_km=5.0,
+            duration_minutes=30.0,
+            incline_percentage=incline,
+            speed_kmh=speed,
+            pace_min_per_km=pace,
+        )
+
+
+def test_treadmill_metrics_incline_boundaries() -> None:
+    """Verify incline_percentage boundary values (0% and 40%)."""
+    m0 = TreadmillMetrics(distance_km=5.0, duration_minutes=30.0, incline_percentage=0.0)
+    assert m0.incline_percentage == 0.0
+
+    m40 = TreadmillMetrics(distance_km=5.0, duration_minutes=30.0, incline_percentage=40.0)
+    assert m40.incline_percentage == 40.0
+
+
+def test_treadmill_metrics_extra_fields_forbidden() -> None:
+    """Verify unexpected fields are rejected in treadmill metrics."""
+    with pytest.raises(ValidationError):
+        TreadmillMetrics(
+            distance_km=5.0,
+            duration_minutes=30.0,
+            extra_field="rejected",  # type: ignore[call-arg]
+        )
+
+
 def test_discriminated_union_workout_metrics() -> None:
     """Verify Discriminated Union deserialization for WorkoutMetrics."""
     adapter: TypeAdapter[WorkoutMetrics] = TypeAdapter(WorkoutMetrics)
 
-    strength_data = {
-        "exercise_type": "strength",
-        "exercise_name": "deadlift",
-        "weight": 180.0,
-        "sets": 3,
-        "reps": 3,
-    }
-    parsed_strength = adapter.validate_python(strength_data)
+    # 1. StrengthExerciseMetrics
+    parsed_strength = adapter.validate_python(
+        {
+            "exercise_type": "strength",
+            "exercise_name": "deadlift",
+            "weight": 180.0,
+            "sets": 3,
+            "reps": 3,
+        }
+    )
     assert isinstance(parsed_strength, StrengthExerciseMetrics)
     assert parsed_strength.weight == 180.0
 
-    cardio_data = {
-        "exercise_type": "cardio",
-        "exercise_name": "running",
-        "distance_km": 10.0,
-        "duration_minutes": 55.0,
-    }
-    parsed_cardio = adapter.validate_python(cardio_data)
+    # 2. CardioExerciseMetrics
+    parsed_cardio = adapter.validate_python(
+        {
+            "exercise_type": "cardio",
+            "exercise_name": "rowing",
+            "distance_km": 10.0,
+            "duration_minutes": 55.0,
+        }
+    )
     assert isinstance(parsed_cardio, CardioExerciseMetrics)
     assert parsed_cardio.distance_km == 10.0
+
+    # 3. BenchPressMetrics (tag: bench_press)
+    parsed_bp = adapter.validate_python(
+        {
+            "exercise_type": "bench_press",
+            "weight": 115.0,
+            "sets": 4,
+            "reps": 6,
+            "grip_width_cm": 81.0,
+        }
+    )
+    assert isinstance(parsed_bp, BenchPressMetrics)
+    assert parsed_bp.grip_width_cm == 81.0
+
+    # 4. BenchPressMetrics (tag: benchpress)
+    parsed_bp_alias = adapter.validate_python(
+        {
+            "exercise_type": "benchpress",
+            "weight": 90.0,
+            "sets": 3,
+            "reps": 10,
+        }
+    )
+    assert isinstance(parsed_bp_alias, BenchPressMetrics)
+    assert parsed_bp_alias.weight == 90.0
+
+    # 5. SquatMetrics (tag: squats)
+    parsed_sq = adapter.validate_python(
+        {
+            "exercise_type": "squats",
+            "weight": 140.0,
+            "sets": 5,
+            "reps": 5,
+            "stance": "wide",
+        }
+    )
+    assert isinstance(parsed_sq, SquatMetrics)
+    assert parsed_sq.stance == "wide"
+
+    # 6. SquatMetrics (tag: squat)
+    parsed_sq_alias = adapter.validate_python(
+        {
+            "exercise_type": "squat",
+            "weight": 130.0,
+            "sets": 3,
+            "reps": 8,
+            "stance": "narrow",
+        }
+    )
+    assert isinstance(parsed_sq_alias, SquatMetrics)
+    assert parsed_sq_alias.stance == "narrow"
+
+    # 7. DeadliftMetrics (tag: deadlift)
+    parsed_dl = adapter.validate_python(
+        {
+            "exercise_type": "deadlift",
+            "weight": 190.0,
+            "sets": 1,
+            "reps": 5,
+            "deadlift_style": "sumo",
+        }
+    )
+    assert isinstance(parsed_dl, DeadliftMetrics)
+    assert parsed_dl.deadlift_style == "sumo"
+
+    # 8. TreadmillMetrics (tag: treadmill)
+    parsed_tm = adapter.validate_python(
+        {
+            "exercise_type": "treadmill",
+            "distance_km": 5.0,
+            "duration_minutes": 25.0,
+            "incline_percentage": 2.5,
+        }
+    )
+    assert isinstance(parsed_tm, TreadmillMetrics)
+    assert parsed_tm.incline_percentage == 2.5
+
+    # 9. TreadmillMetrics (tag: running)
+    parsed_run = adapter.validate_python(
+        {
+            "exercise_type": "running",
+            "distance_km": 8.0,
+            "duration_minutes": 42.0,
+            "speed_kmh": 11.4,
+        }
+    )
+    assert isinstance(parsed_run, TreadmillMetrics)
+    assert parsed_run.speed_kmh == 11.4
 
     # Invalid discriminator value
     with pytest.raises(ValidationError):
@@ -155,6 +515,91 @@ def test_discriminated_union_workout_metrics() -> None:
                 "exercise_name": "pool",
             }
         )
+
+
+def test_workout_schemas_metrics_normalization() -> None:
+    """Verify that 'exercise' field is normalized to 'exercise_type' for backward compatibility."""
+    from workout_service.src.schemas.workout import (
+        WorkoutBase,
+        WorkoutCreate,
+        WorkoutResponse,
+        WorkoutUpdate,
+    )
+
+    # 1. WorkoutBase with legacy 'exercise' field
+    wb = WorkoutBase.model_validate(
+        {
+            "type": "bench_press",
+            "metrics": {
+                "exercise": "bench_press",
+                "weight": 110.0,
+                "sets": 4,
+                "reps": 6,
+            },
+        }
+    )
+    assert isinstance(wb.metrics, BenchPressMetrics)
+    assert wb.metrics.exercise_type == "bench_press"
+    assert wb.metrics.weight == 110.0
+
+    # 2. WorkoutCreate with legacy 'exercise' field
+    user_id = uuid4()
+    wc = WorkoutCreate.model_validate(
+        {
+            "user_id": user_id,
+            "type": "squat",
+            "metrics": {
+                "exercise": "squats",
+                "weight": 150.0,
+                "sets": 3,
+                "reps": 5,
+                "stance": "medium",
+            },
+        }
+    )
+    assert isinstance(wc.metrics, SquatMetrics)
+    assert wc.metrics.exercise_type == "squats"
+    assert wc.metrics.stance == "medium"
+
+    # 3. WorkoutUpdate with legacy 'exercise' field
+    wu = WorkoutUpdate.model_validate(
+        {
+            "metrics": {
+                "exercise": "deadlift",
+                "weight": 210.0,
+                "sets": 1,
+                "reps": 3,
+                "deadlift_style": "conventional",
+            },
+        }
+    )
+    assert isinstance(wu.metrics, DeadliftMetrics)
+    assert wu.metrics.exercise_type == "deadlift"
+
+    # WorkoutUpdate with None metrics remains None
+    wu_none = WorkoutUpdate(metrics=None)
+    assert wu_none.metrics is None
+
+    # 4. WorkoutResponse with legacy 'exercise' field
+    now = datetime.now(UTC)
+    wr = WorkoutResponse.model_validate(
+        {
+            "id": uuid4(),
+            "user_id": user_id,
+            "date": now,
+            "type": "treadmill",
+            "metrics": {
+                "exercise": "treadmill",
+                "distance_km": 5.0,
+                "duration_minutes": 25.0,
+                "incline_percentage": 2.0,
+            },
+            "created_at": now,
+        }
+    )
+    assert isinstance(wr.metrics, TreadmillMetrics)
+    assert wr.metrics.exercise_type == "treadmill"
+    assert wr.metrics.incline_percentage == 2.0
 
 
 def test_base_event_defaults() -> None:
@@ -281,10 +726,16 @@ def test_shared_contracts_all_exports() -> None:
     expected_exports = {
         "BaseCommand",
         "BaseEvent",
+        "BenchPressMetrics",
         "CardioExerciseMetrics",
+        "DeadliftMetrics",
+        "RunningMetrics",
         "SendAchievementNotificationCommand",
         "SendNotificationCommand",
+        "SquatMetrics",
+        "SquatsMetrics",
         "StrengthExerciseMetrics",
+        "TreadmillMetrics",
         "WorkoutCompletedEvent",
         "WorkoutCreatedEvent",
         "WorkoutMetrics",

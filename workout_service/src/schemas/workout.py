@@ -1,15 +1,30 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from shared.contracts.src.metrics import (
+    BenchPressMetrics,
     CardioExerciseMetrics,
+    DeadliftMetrics,
+    RunningMetrics,
+    SquatMetrics,
+    SquatsMetrics,
     StrengthExerciseMetrics,
+    TreadmillMetrics,
     WorkoutMetrics,
 )
+
+
+def _normalize_exercise_metrics(value: Any) -> Any:
+    """Normalize legacy 'exercise' field to 'exercise_type' for backward compatibility."""
+    if isinstance(value, dict) and "exercise" in value and "exercise_type" not in value:
+        value = dict(value)
+        value["exercise_type"] = value.pop("exercise")
+    return value
 
 
 class WorkoutBase(BaseModel):
@@ -25,6 +40,11 @@ class WorkoutBase(BaseModel):
         default_factory=lambda: datetime.now(UTC),
         description="Date and time when the workout took place in UTC",
     )
+
+    @field_validator("metrics", mode="before")
+    @classmethod
+    def normalize_metrics(cls, value: Any) -> Any:
+        return _normalize_exercise_metrics(value)
 
 
 class WorkoutCreate(WorkoutBase):
@@ -53,6 +73,11 @@ class WorkoutUpdate(BaseModel):
         description="Updated date and time in UTC",
     )
 
+    @field_validator("metrics", mode="before")
+    @classmethod
+    def normalize_metrics(cls, value: Any) -> Any:
+        return _normalize_exercise_metrics(value)
+
 
 class WorkoutResponse(BaseModel):
     """Schema for returning workout details in API responses."""
@@ -68,10 +93,21 @@ class WorkoutResponse(BaseModel):
     )
     created_at: datetime = Field(description="Record creation timestamp in UTC")
 
+    @field_validator("metrics", mode="before")
+    @classmethod
+    def normalize_metrics(cls, value: Any) -> Any:
+        return _normalize_exercise_metrics(value)
+
 
 __all__ = [
+    "BenchPressMetrics",
     "CardioExerciseMetrics",
+    "DeadliftMetrics",
+    "RunningMetrics",
+    "SquatMetrics",
+    "SquatsMetrics",
     "StrengthExerciseMetrics",
+    "TreadmillMetrics",
     "WorkoutBase",
     "WorkoutCreate",
     "WorkoutMetrics",
