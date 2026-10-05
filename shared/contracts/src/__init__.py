@@ -11,18 +11,30 @@ from shared.contracts.src.events import (
     WorkoutCreatedEvent,
 )
 from shared.contracts.src.metrics import (
+    BenchPressMetrics,
     CardioExerciseMetrics,
+    DeadliftMetrics,
+    RunningMetrics,
+    SquatMetrics,
+    SquatsMetrics,
     StrengthExerciseMetrics,
+    TreadmillMetrics,
     WorkoutMetrics,
 )
 
 __all__ = [
     "BaseCommand",
     "BaseEvent",
+    "BenchPressMetrics",
     "CardioExerciseMetrics",
+    "DeadliftMetrics",
+    "RunningMetrics",
     "SendAchievementNotificationCommand",
     "SendNotificationCommand",
+    "SquatMetrics",
+    "SquatsMetrics",
     "StrengthExerciseMetrics",
+    "TreadmillMetrics",
     "WorkoutCompletedEvent",
     "WorkoutCreatedEvent",
     "WorkoutMetrics",

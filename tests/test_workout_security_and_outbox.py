@@ -709,3 +709,322 @@ async def test_sql_injection_protection_in_query_parameters() -> None:
         # SQL injection in user_id filter
         res_uid = await client.get("/api/workouts/?user_id=' OR '1'='1")
         assert res_uid.status_code == 422
+
+
+# ==============================================================================
+# 5. Discriminated Unions API Integration & Specialized Profiles Tests
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("exercise_payload", "expected_type", "expected_metric_key", "expected_metric_val"),
+    [
+        (
+            {
+                "exercise_type": "bench_press",
+                "weight": 120.0,
+                "sets": 4,
+                "reps": 6,
+                "rpe": 8.5,
+                "grip_width_cm": 81.0,
+            },
+            "bench_press",
+            "grip_width_cm",
+            81.0,
+        ),
+        (
+            {
+                "exercise_type": "benchpress",
+                "weight": 95.0,
+                "sets": 3,
+                "reps": 10,
+            },
+            "benchpress",
+            "weight",
+            95.0,
+        ),
+        (
+            {
+                "exercise_type": "squats",
+                "weight": 160.0,
+                "sets": 5,
+                "reps": 5,
+                "stance": "wide",
+            },
+            "squats",
+            "stance",
+            "wide",
+        ),
+        (
+            {
+                "exercise_type": "squat",
+                "weight": 140.0,
+                "sets": 3,
+                "reps": 8,
+                "stance": "narrow",
+            },
+            "squat",
+            "stance",
+            "narrow",
+        ),
+        (
+            {
+                "exercise_type": "deadlift",
+                "weight": 210.0,
+                "sets": 2,
+                "reps": 4,
+                "deadlift_style": "sumo",
+            },
+            "deadlift",
+            "deadlift_style",
+            "sumo",
+        ),
+        (
+            {
+                "exercise_type": "deadlift",
+                "weight": 190.0,
+                "sets": 3,
+                "reps": 5,
+                "deadlift_style": "conventional",
+            },
+            "deadlift",
+            "deadlift_style",
+            "conventional",
+        ),
+        (
+            {
+                "exercise_type": "treadmill",
+                "distance_km": 6.5,
+                "duration_minutes": 32.0,
+                "incline_percentage": 3.5,
+                "speed_kmh": 12.0,
+                "pace_min_per_km": 5.0,
+            },
+            "treadmill",
+            "incline_percentage",
+            3.5,
+        ),
+        (
+            {
+                "exercise_type": "running",
+                "distance_km": 10.0,
+                "duration_minutes": 52.0,
+                "heart_rate": 160,
+                "calories_burned": 650,
+            },
+            "running",
+            "calories_burned",
+            650,
+        ),
+    ],
+)
+async def test_specialized_exercise_metrics_api_success(
+    exercise_payload: dict[str, object],
+    expected_type: str,
+    expected_metric_key: str,
+    expected_metric_val: object,
+) -> None:
+    """Verify all specialized exercise types are accepted via API and produce valid outbox."""
+    user_id = uuid.uuid4()
+    payload = {
+        "user_id": str(user_id),
+        "type": expected_type,
+        "date": datetime.now(UTC).isoformat(),
+        "metrics": exercise_payload,
+    }
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.post("/api/workouts/", json=payload)
+        assert res.status_code == 201, f"Failed with {res.status_code}: {res.text}"
+        data = res.json()
+        workout_id = uuid.UUID(data["id"])
+        assert data["metrics"]["exercise_type"] == expected_type
+        assert data["metrics"][expected_metric_key] == expected_metric_val
+
+    # Verify transactional outbox
+    async with _test_session_factory() as session:
+        workout = await session.get(WorkoutModel, workout_id)
+        assert workout is not None
+
+        stmt = select(OutboxModel).where(
+            OutboxModel.payload["workout_id"].as_string() == str(workout_id)
+        )
+        result = await session.execute(stmt)
+        outbox = result.scalar_one_or_none()
+        assert outbox is not None
+        assert outbox.event_type == "workout.created"
+        assert outbox.status == "pending"
+        assert outbox.payload["metrics"]["exercise_type"] == expected_type
+        assert outbox.payload["metrics"][expected_metric_key] == expected_metric_val
+
+        # Cleanup
+        await session.delete(workout)
+        await session.delete(outbox)
+        await session.commit()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "invalid_specialized_metrics",
+    [
+        # bench_press: invalid grip_width_cm (<= 0)
+        {
+            "exercise_type": "bench_press",
+            "weight": 100.0,
+            "sets": 3,
+            "reps": 5,
+            "grip_width_cm": 0.0,
+        },
+        {
+            "exercise_type": "bench_press",
+            "weight": 100.0,
+            "sets": 3,
+            "reps": 5,
+            "grip_width_cm": -10.0,
+        },
+        # bench_press: extra forbidden field
+        {
+            "exercise_type": "bench_press",
+            "weight": 100.0,
+            "sets": 3,
+            "reps": 5,
+            "extra_field": "disallowed",
+        },
+        # squats: invalid stance
+        {
+            "exercise_type": "squats",
+            "weight": 120.0,
+            "sets": 3,
+            "reps": 5,
+            "stance": "ultra_wide",
+        },
+        # squats: extra forbidden field
+        {
+            "exercise_type": "squats",
+            "weight": 120.0,
+            "sets": 3,
+            "reps": 5,
+            "extra_field": "disallowed",
+        },
+        # deadlift: invalid deadlift_style
+        {
+            "exercise_type": "deadlift",
+            "weight": 150.0,
+            "sets": 3,
+            "reps": 5,
+            "deadlift_style": "romanian",
+        },
+        # deadlift: extra forbidden field
+        {
+            "exercise_type": "deadlift",
+            "weight": 150.0,
+            "sets": 3,
+            "reps": 5,
+            "extra_field": "disallowed",
+        },
+        # treadmill: incline out of bounds (< 0 or > 40)
+        {
+            "exercise_type": "treadmill",
+            "distance_km": 5.0,
+            "duration_minutes": 25.0,
+            "incline_percentage": -1.0,
+        },
+        {
+            "exercise_type": "treadmill",
+            "distance_km": 5.0,
+            "duration_minutes": 25.0,
+            "incline_percentage": 41.0,
+        },
+        # treadmill: speed_kmh <= 0
+        {
+            "exercise_type": "treadmill",
+            "distance_km": 5.0,
+            "duration_minutes": 25.0,
+            "speed_kmh": 0.0,
+        },
+        # treadmill: pace_min_per_km <= 0
+        {
+            "exercise_type": "treadmill",
+            "distance_km": 5.0,
+            "duration_minutes": 25.0,
+            "pace_min_per_km": -2.0,
+        },
+        # treadmill: extra forbidden field
+        {
+            "exercise_type": "treadmill",
+            "distance_km": 5.0,
+            "duration_minutes": 25.0,
+            "extra_field": "disallowed",
+        },
+        # running: extra forbidden field
+        {
+            "exercise_type": "running",
+            "distance_km": 5.0,
+            "duration_minutes": 25.0,
+            "extra_field": "disallowed",
+        },
+    ],
+)
+async def test_specialized_exercise_metrics_api_validation_errors(
+    invalid_specialized_metrics: dict[str, object],
+) -> None:
+    """Verify that invalid specialized metrics and extra fields are rejected with 422."""
+    payload = {
+        "user_id": str(uuid.uuid4()),
+        "type": "exercise_test",
+        "date": datetime.now(UTC).isoformat(),
+        "metrics": invalid_specialized_metrics,
+    }
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.post("/api/workouts/", json=payload)
+    assert res.status_code == 422, (
+        f"Expected 422 for metrics: {invalid_specialized_metrics}, got {res.status_code}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_api_backward_compatibility_exercise_field_normalization() -> None:
+    """Verify API normalizes legacy 'exercise' field to 'exercise_type' and saves to DB & outbox."""
+    user_id = uuid.uuid4()
+    payload = {
+        "user_id": str(user_id),
+        "type": "bench_press",
+        "date": datetime.now(UTC).isoformat(),
+        "metrics": {
+            "exercise": "bench_press",
+            "weight": 105.0,
+            "sets": 3,
+            "reps": 8,
+            "grip_width_cm": 75.0,
+        },
+    }
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.post("/api/workouts/", json=payload)
+        assert res.status_code == 201, f"Failed with {res.status_code}: {res.text}"
+        data = res.json()
+        workout_id = uuid.UUID(data["id"])
+        assert data["metrics"]["exercise_type"] == "bench_press"
+        assert data["metrics"]["weight"] == 105.0
+
+    async with _test_session_factory() as session:
+        workout = await session.get(WorkoutModel, workout_id)
+        assert workout is not None
+        assert workout.metrics["exercise_type"] == "bench_press"
+
+        stmt = select(OutboxModel).where(
+            OutboxModel.payload["workout_id"].as_string() == str(workout_id)
+        )
+        result = await session.execute(stmt)
+        outbox = result.scalar_one_or_none()
+        assert outbox is not None
+        assert outbox.payload["metrics"]["exercise_type"] == "bench_press"
+
+        # Cleanup
+        await session.delete(workout)
+        await session.delete(outbox)
+        await session.commit()
