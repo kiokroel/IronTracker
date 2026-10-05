@@ -11,3 +11,4 @@
 |:---|:---|:---|:---|
 | 2026-10-04 | Начальная конфигурация ханеса: субагенты iron-developer, iron-tester, iron-critic и навыки iron-orchestrator, endpoint-developer, db-migrator, architecture-auditor, test-runner | irontracker-plugin | Инициализация мультиагентного ханеса проекта |
 | 2026-10-04 | Добавлена автоматизация коммита, пуша ветки и создания Pull Request с описанием после утверждения изменений | iron-orchestrator, 04-git-flow, dev-critic-tester | Автоматизация финализации задач по запросу пользователя |
+| 2026-10-05 | Внедрение проверок безопасности: SAST (bandit), аудит зависимостей (pip-audit), запрет бэкдоров, защита от IDOR и утечек секретов | iron-tester, iron-critic, iron-developer, skills, workflows | Усиление безопасности и защита кодовой базы от бэкдоров и уязвимостей |

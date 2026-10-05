@@ -13,9 +13,9 @@ description: "Главный оркестратор полного цикла р
 
 | Субагент (TypeName) | Роль | Зона ответственности | Основной артефакт |
 |:---|:---|:---|:---|
-| `iron-developer` | Ведущий разработчик | Код сервисов, моделей, роутеров, Outbox, Pydantic DTO | `_workspace/01_developer_report.md` |
-| `iron-tester` | QA & Тест-инженер | Unit/интеграционные тесты, pytest, ruff, mypy, Outbox rollback | `_workspace/02_tester_report.md` |
-| `iron-critic` | Архитектурный цензор | Аудит 01-architecture, 02-code-style, 03-testing, вынесение вердикта | `_workspace/03_critic_report.md` |
+| `iron-developer` | Ведущий разработчик | Код сервисов, моделей, роутеров, Outbox, Pydantic DTO, Secure Coding | `_workspace/01_developer_report.md` |
+| `iron-tester` | QA & Инженер безопасности | Unit/интеграционные тесты, pytest, ruff, mypy, bandit, pip-audit, IDOR | `_workspace/02_tester_report.md` |
+| `iron-critic` | Архитектурный цензор и аудитор ИБ | Аудит 01-architecture, 02-code-style, 03-testing, аудит бэкдоров/секретов | `_workspace/03_critic_report.md` |
 
 ---
 
@@ -54,6 +54,7 @@ description: "Главный оркестратор полного цикла р
   - JSONB метрики валидируй строго через Pydantic v2 Discriminated Unions.
   - Запрещен Dual Write: в Workout Service события сохраняются в таблицу outbox в той же транзакции БД.
   - Только асинхронный I/O (asyncpg, motor, redis.asyncio, aiokafka, aio-pika).
+  - Стандарты безопасности: запрет eval/exec/pickle/subprocess, отсутствие захардкоженных секретов (только .env/pydantic-settings), защита от инъекций и IDOR.
   Зафиксируй результаты своей работы в файле _workspace/01_developer_report.md.
   ```
 Ожидай завершения работы разработчика.
@@ -62,19 +63,22 @@ description: "Главный оркестратор полного цикла р
 
 После получения отчета разработчика запусти субагента-тестировщика через `invoke_subagent`:
 - **TypeName**: `iron-tester`
-- **Role**: `QA Automation Engineer`
+- **Role**: `QA Automation & Security Engineer`
 - **Prompt**:
   ```
   Ознакомься с отчетом разработчика в _workspace/01_developer_report.md и измененным кодом.
-  Выполни полный цикл проверок качества:
-  1. Запусти линтинг: ruff check .
+  Выполни полный цикл проверок качества и безопасности:
+  1. Запусти линтинг: ruff check . && ruff format --check .
   2. Запусти проверку типов: mypy --strict .
-  3. Напиши/дополни тесты на pytest с httpx.AsyncClient и @pytest.mark.asyncio.
-  4. Проверь атомарность Transactional Outbox:
+  3. Запусти SAST-анализ безопасности: bandit -r workout_service/ leaderboard_service/ analytics_service/ notification_service/ shared/ tests/ -ll
+  4. Запусти аудит уязвимостей зависимостей: pip-audit
+  5. Напиши/дополни тесты на pytest с httpx.AsyncClient и @pytest.mark.asyncio.
+  6. Проверь атомарность Transactional Outbox:
      - При коммите создается запись outbox со статусом 'pending';
      - При ошибке/откате транзакции запись outbox отсутствует.
-  5. Проверь валидацию JSONB: некорректные данные вызывают 422 Unprocessable Entity.
-  Зафиксируй отчет в _workspace/02_tester_report.md со статусом (PASS/FAIL) и полными логами/стектрейсами.
+  7. Проверь валидацию JSONB: некорректные данные вызывают 422 Unprocessable Entity.
+  8. Проверь защищенность эндпоинтов (IDOR, корректность обработки чужих ресурсов).
+  Зафиксируй отчет в _workspace/02_tester_report.md со статусом (PASS/FAIL) и полными логами/стектрейсами/отчетами безопасности.
   ```
 Ожидай завершения тестирования.
 
@@ -82,10 +86,10 @@ description: "Главный оркестратор полного цикла р
 
 Запусти субагента-критика через `invoke_subagent`:
 - **TypeName**: `iron-critic`
-- **Role**: `Principal Architecture Auditor`
+- **Role**: `Principal Architecture & Security Auditor`
 - **Prompt**:
   ```
-  Проведи строгий архитектурный аудит изменений на основе:
+  Проведи строгий архитектурный аудит и аудит безопасности изменений на основе:
   - Кодовой базы проекта;
   - Отчета разработчика _workspace/01_developer_report.md;
   - Отчета тестировщика _workspace/02_tester_report.md.
@@ -94,9 +98,10 @@ description: "Главный оркестратор полного цикла р
   2. Валидацию JSONB метрик через Discriminated Unions в Pydantic v2.
   3. Изоляцию брокеров (Kafka - факты, RabbitMQ - команды).
   4. Строгий асинхронный I/O (нет aioredis, нет блокирующих вызовов).
-  5. from __future__ import annotations и чистоту типизации.
+  5. Безопасность и отсутствие бэкдоров: запрет eval/exec/pickle/subprocess, отсутствие хардкода секретов/токенов, отсутствие скрытых debug-ручек, чистые отчеты bandit и pip-audit.
+  6. from __future__ import annotations и чистоту типизации.
   Вынеси однозначный вердикт в _workspace/03_critic_report.md:
-  Либо VERDICT: APPROVED, либо VERDICT: REJECTED с нумерованным списком правок.
+  Либо VERDICT: APPROVED, либо VERDICT: REJECTED с нумерованным списком правок (с категорией [Architecture / Security / Bug]).
   ```
 Ожидай вердикта критика.
 
@@ -133,9 +138,9 @@ description: "Главный оркестратор полного цикла р
 3. **Автоматическое создание Pull Request с подробным описанием:**
    - Сформировать подробное описание PR на основе артефактов `_workspace/` (`01_developer_report.md`, `02_tester_report.md`, `03_critic_report.md`):
      - **## Обзор задачи и изменений (Summary):** краткая суть фичи/исправления, затронутые микросервисы.
-     - **## Архитектурный аудит (Architecture Compliance):** вердикт `VERDICT: APPROVED`, подтверждение соблюдения Transactional Outbox (отсутствие Dual Write), строгой типизации JSONB, разделения брокеров и асинхронного I/O.
-     - **## Результаты тестирования и линтинга (QA Report):** статус `pytest`, `ruff check`, `mypy --strict`, тесты Outbox rollback/commit.
-     - **## Чек-лист верификации (Checklist):** пройденные проверки стандартов IronTracker.
+     - **## Архитектурный аудит и безопасность (Architecture & Security Compliance):** вердикт `VERDICT: APPROVED`, подтверждение соблюдения Transactional Outbox (отсутствие Dual Write), строгой типизации JSONB, разделения брокеров, асинхронного I/O и отсутствие бэкдоров/утечек секретов.
+     - **## Результаты тестирования и аудита (QA & Security Report):** статус `pytest`, `ruff check`, `mypy --strict`, `bandit` (0 issues), `pip-audit` (0 CVEs), тесты Outbox rollback/commit, тесты IDOR.
+     - **## Чек-лист верификации (Checklist):** пройденные проверки стандартов качества и безопасности IronTracker.
    - Вызвать инструмент GitHub MCP `create_pull_request` (или CLI `gh pr create`):
      - `owner`: владелец репозитория (например, `kiokroel`);
      - `repo`: `IronTracker`;

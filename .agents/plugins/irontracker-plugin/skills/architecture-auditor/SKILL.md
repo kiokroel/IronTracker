@@ -1,13 +1,13 @@
 ---
 name: architecture-auditor
-description: "Экспертное руководство по проведению строгого архитектурного аудита кода IronTracker согласно 01-architecture.md, 02-code-style.md и 03-testing.md. Выявляет Dual Write, нарушения Transactional Outbox, сырые JSONB словари, синхронный ввод-вывод и смешивание брокеров. Используй при запросах: проверь архитектуру, аудит кода, critic phase, code review, проверь стандарты, вынеси вердикт."
+description: "Экспертное руководство по проведению строгого архитектурного аудита и аудита безопасности кода IronTracker согласно 01-architecture.md, 02-code-style.md и 03-testing.md. Выявляет Dual Write, нарушения Transactional Outbox, сырые JSONB словари, синхронный ввод-вывод, смешивание брокеров, бэкдоры, утечки секретов и уязвимости. Используй при запросах: проверь архитектуру, аудит кода, аудит безопасности, critic phase, code review, проверь стандарты, вынеси вердикт."
 ---
 
-# Architecture Auditor Skill — IronTracker
+# Architecture & Security Auditor Skill — IronTracker
 
-Данный навык формализует процедуру строгого аудита изменений кодовой базы проекта IronTracker. Применяется архитектурным критиком (`iron-critic`) для вынесения вердикта `VERDICT: APPROVED` либо `VERDICT: REJECTED`.
+Данный навык формализует процедуру строгого аудита изменений кодовой базы и безопасности проекта IronTracker. Применяется архитектурным цензором (`iron-critic`) для вынесения вердикта `VERDICT: APPROVED` либо `VERDICT: REJECTED`.
 
-## Архитектурные аксиомы IronTracker
+## Аксиомы архитектуры и безопасности IronTracker
 
 Любое нарушение следующих аксиом влечет **немедленный REJECT**:
 
@@ -51,6 +51,14 @@ description: "Экспертное руководство по проведен�
 - Линтер `ruff check .` должен быть зеленым.
 - Существующие комментарии разработчиков не удалены.
 
+### 7. Безопасность и безусловный запрет бэкдоров (Security & Zero Backdoors)
+- **Правило:** Категорически запрещены любые бэкдоры, скрытые лазейки и небезопасные конструкции.
+- **Паттерны проверки:**
+  - Ищи вызовы `eval()`, `exec()`, `__import__()`, `pickle.loads()`, `marshal`, `os.system()`, `subprocess.Popen`, создание низкоуровневых сокетов для скрытого сетевого обмена. Любое обнаружение — **МГНОВЕННЫЙ REJECT**.
+  - Проверяй отсутствие захардкоженных секретов: паролей БД, токенов аутентификации, API-ключей. Конфигурации должны считываться только через переменные окружения (`pydantic-settings` / `.env`).
+  - Проверяй роуты FastAPI: отсутствие скрытых debug-ручек, эндпоинтов обхода прав доступа (`bypass_auth`, `backdoor`).
+  - Проверяй результаты `bandit` и `pip-audit` из отчета тестировщика: 0 уязвимостей.
+
 ---
 
 ## Формат отчета аудита (`_workspace/03_critic_report.md`)
@@ -58,15 +66,16 @@ description: "Экспертное руководство по проведен�
 Отчет должен содержать структурированный разбор каждого пункта:
 
 ```markdown
-# Архитектурный отчет IronTracker
+# Архитектурный отчет и аудит безопасности IronTracker
 
 ## Статус проверки критериев:
 - [x] Transactional Outbox (Dual Write отсутствует): СООТВЕТСТВУЕТ
 - [x] Discriminated Unions для JSONB: СООТВЕТСТВУЕТ
 - [x] Разделение брокеров (Kafka/RabbitMQ): СООТВЕТСТВУЕТ
 - [x] Асинхронный I/O (asyncpg, redis.asyncio): СООТВЕТСТВУЕТ
+- [x] Безопасность (нет бэкдоров, хардкода секретов, Bandit 0, pip-audit 0): СООТВЕТСТВУЕТ
 - [x] Статическая типизация и линтинг: СООТВЕТСТВУЕТ
-- [x] Тесты (включая откат транзакций): СООТВЕТСТВУЕТ
+- [x] Тесты (включая откат транзакций и проверки доступа): СООТВЕТСТВУЕТ
 
 ## Итоговый вердикт:
 VERDICT: APPROVED
@@ -75,11 +84,13 @@ VERDICT: APPROVED
 Если обнаружены дефекты:
 
 ```markdown
-# Архитектурный отчет IronTracker
+# Архитектурный отчет и аудит безопасности IronTracker
 
 ## Выявленные нарушения:
-1. **[Dual Write]** В файле `services/workout/service.py:45` обнаружен прямой вызов `await kafka_producer.send()`. Необходимо перенести сохранение события в таблицу `outbox` в рамках сессии SQLAlchemy.
-2. **[JSONB Validation]** В схеме `schemas.py:18` метрики объявлены как `metrics: dict`. Требуется заменить на `Discriminated Union` (StrengthExerciseMetrics / CardioExerciseMetrics).
+1. **[Security/Backdoor]** В файле `services/workout/service.py:72` обнаружен вызов `eval()`. Любое динамическое выполнение кода категорически запрещено.
+2. **[Security/Secrets]** В файле `config.py:15` обнаружен захардкоженный пароль БД. Конфигурацию необходимо получать через `pydantic-settings` из `.env`.
+3. **[Dual Write]** В файле `services/workout/service.py:45` обнаружен прямой вызов `await kafka_producer.send()`. Необходимо перенести сохранение события в таблицу `outbox` в рамках сессии SQLAlchemy.
+4. **[JSONB Validation]** В схеме `schemas.py:18` метрики объявлены как `metrics: dict`. Требуется заменить на `Discriminated Union` (StrengthExerciseMetrics / CardioExerciseMetrics).
 
 ## Итоговый вердикт:
 VERDICT: REJECTED
