@@ -7,9 +7,8 @@ trigger: always_on
 Все задачи проекта IronTracker ведутся и отслеживаются в Notion через Notion MCP сервер. Работа над задачами в обход Notion строго запрещена.
 
 ## 1. База задач и канбан-доска
-- **Основная база задач:** `IronTracker: Kanban Board` (ID: `e87bceae-977d-48ef-9f5a-2a59b0c0f5f4`, источник данных: `collection://c09d20db-9a42-4da3-a3c1-afd1d80fe689`).
-- **Связанная база:** `Задачи IronTracker` / `IronTracker: Этапы разработки`.
-- Для поиска задач используй инструменты Notion MCP: `notion-search`, `notion-query-data-sources`, `notion-fetch`.
+- **Основная актуальная база задач:** `IronTracker: Этапы разработки` (ID: `a5dbffed-c3c8-49e7-974c-a4dab759bed1`, источник данных: `collection://2ec8f867-11bc-40de-a96c-52b70c3f9962`).
+- Для поиска и управления задачами используй инструменты Notion MCP: `notion-search`, `notion-query-data-sources`, `notion-fetch`, `notion-update-page`.
 
 ## 2. Жизненный цикл работы над задачей
 
