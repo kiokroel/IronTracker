@@ -32,26 +32,38 @@ class BaseRepository[T: Base, CreateSchemaType: BaseModel, UpdateSchemaType: Bas
         """Создать новый объект в базе данных."""
         obj_data = obj_in.model_dump()
         db_obj = self.model(**obj_data)
-        self.db.add(db_obj)
-        await self.db.commit()
-        await self.db.refresh(db_obj)
-        return db_obj
+        try:
+            self.db.add(db_obj)
+            await self.db.commit()
+            await self.db.refresh(db_obj)
+            return db_obj
+        except Exception:
+            await self.db.rollback()
+            raise
 
     async def update(self, db_obj: T, obj_in: UpdateSchemaType) -> T:
         """Обновить объект в базе данных."""
         obj_data = obj_in.model_dump(exclude_unset=True)
         for field, value in obj_data.items():
             setattr(db_obj, field, value)
-        self.db.add(db_obj)
-        await self.db.commit()
-        await self.db.refresh(db_obj)
-        return db_obj
+        try:
+            self.db.add(db_obj)
+            await self.db.commit()
+            await self.db.refresh(db_obj)
+            return db_obj
+        except Exception:
+            await self.db.rollback()
+            raise
 
     async def delete(self, id: UUID) -> bool:
         """Удалить сущность по ID."""
         db_obj = await self.get(id)
         if db_obj:
-            await self.db.delete(db_obj)
-            await self.db.commit()
-            return True
+            try:
+                await self.db.delete(db_obj)
+                await self.db.commit()
+                return True
+            except Exception:
+                await self.db.rollback()
+                raise
         return False

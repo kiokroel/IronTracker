@@ -35,7 +35,7 @@ def test_settings_default_values(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.postgres_host == "localhost"
     assert settings.postgres_port == 5432
     assert settings.postgres_user == "irontracker"
-    assert settings.postgres_password == "irontracker_secret"
+    assert settings.postgres_password == "irontracker_secret"  # nosec B105
     assert settings.postgres_db == "irontracker_workout"
     assert settings.db_echo is False
     assert settings.db_pool_size == 10
@@ -60,7 +60,7 @@ def test_settings_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
     assert custom_settings.postgres_host == "custom_host"
     assert custom_settings.postgres_port == 5433
     assert custom_settings.postgres_user == "custom_user"
-    assert custom_settings.postgres_password == "custom_pass"
+    assert custom_settings.postgres_password == "custom_pass"  # nosec B105
     assert custom_settings.postgres_db == "custom_db"
     assert custom_settings.db_echo is True
 

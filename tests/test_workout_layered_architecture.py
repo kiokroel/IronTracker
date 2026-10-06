@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from pathlib import Path
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -342,3 +342,76 @@ def test_no_unsafe_functions_in_workout_service() -> None:
             assert forbidden not in content, (
                 f"Forbidden security vulnerability '{forbidden}' found in {file_path}"
             )
+
+
+@pytest.mark.asyncio
+async def test_base_repository_rollback_on_commit_failure() -> None:
+    """Verify BaseRepository rollback on commit failure for create, update, and delete."""
+    user_id = uuid.uuid4()
+    dto = WorkoutCreate(
+        user_id=user_id,
+        type="deadlift",
+        metrics=StrengthExerciseMetrics(
+            exercise_name="deadlift",
+            weight=150.0,
+            sets=3,
+            reps=5,
+        ),
+    )
+
+    # 1. Test create rollback
+    async with _test_session_factory() as session:
+        repo = BaseRepository[WorkoutModel, WorkoutCreate, WorkoutUpdate](session, WorkoutModel)
+        with patch.object(session, "commit", side_effect=RuntimeError("Create commit fail")):
+            with patch.object(session, "rollback", wraps=session.rollback) as mock_rollback:
+                with pytest.raises(RuntimeError, match="Create commit fail"):
+                    await repo.create(dto)
+                mock_rollback.assert_awaited_once()
+
+    # Verify nothing was persisted
+    async with _test_session_factory() as session:
+        stmt = select(WorkoutModel).where(WorkoutModel.user_id == user_id)
+        res = await session.execute(stmt)
+        assert len(list(res.scalars().all())) == 0
+
+    # Create real workout for update & delete rollback tests
+    async with _test_session_factory() as session:
+        repo = BaseRepository[WorkoutModel, WorkoutCreate, WorkoutUpdate](session, WorkoutModel)
+        workout = await repo.create(dto)
+        workout_id = workout.id
+
+    # 2. Test update rollback
+    async with _test_session_factory() as session:
+        repo = BaseRepository[WorkoutModel, WorkoutCreate, WorkoutUpdate](session, WorkoutModel)
+        db_workout = await repo.get(workout_id)
+        assert db_workout is not None
+        update_dto = WorkoutUpdate(type="sumo_deadlift")
+        with patch.object(session, "commit", side_effect=RuntimeError("Update commit fail")):
+            with patch.object(session, "rollback", wraps=session.rollback) as mock_rollback:
+                with pytest.raises(RuntimeError, match="Update commit fail"):
+                    await repo.update(db_workout, update_dto)
+                mock_rollback.assert_awaited_once()
+
+    # Verify type was not changed in DB
+    async with _test_session_factory() as session:
+        fetched = await session.get(WorkoutModel, workout_id)
+        assert fetched is not None
+        assert fetched.type == "deadlift"
+
+    # 3. Test delete rollback
+    async with _test_session_factory() as session:
+        repo = BaseRepository[WorkoutModel, WorkoutCreate, WorkoutUpdate](session, WorkoutModel)
+        with patch.object(session, "commit", side_effect=RuntimeError("Delete commit fail")):
+            with patch.object(session, "rollback", wraps=session.rollback) as mock_rollback:
+                with pytest.raises(RuntimeError, match="Delete commit fail"):
+                    await repo.delete(workout_id)
+                mock_rollback.assert_awaited_once()
+
+    # Verify workout still exists in DB
+    async with _test_session_factory() as session:
+        fetched = await session.get(WorkoutModel, workout_id)
+        assert fetched is not None
+
+        # Clean up
+        await session.delete(fetched)
+        await session.commit()
