@@ -49,6 +49,27 @@ class Settings(BaseModel):
         description="Max overflow connections in pool",
     )
 
+    kafka_bootstrap_servers: str = Field(
+        default_factory=lambda: os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
+        description="Kafka bootstrap servers",
+    )
+    kafka_workout_topic: str = Field(
+        default_factory=lambda: os.getenv("KAFKA_WORKOUT_TOPIC", "workout.events"),
+        description="Kafka topic for workout events",
+    )
+    outbox_poll_interval: float = Field(
+        default_factory=lambda: float(os.getenv("OUTBOX_POLL_INTERVAL", "1.0")),
+        description="Interval in seconds between outbox polling passes",
+    )
+    outbox_batch_size: int = Field(
+        default_factory=lambda: int(os.getenv("OUTBOX_BATCH_SIZE", "50")),
+        description="Number of outbox records to process in a single batch",
+    )
+    outbox_max_retries: int = Field(
+        default_factory=lambda: int(os.getenv("OUTBOX_MAX_RETRIES", "3")),
+        description="Maximum retry attempts before marking an outbox record as failed",
+    )
+
     @property
     def database_url(self) -> str:
         """Construct async PostgreSQL connection URL with asyncpg driver."""
