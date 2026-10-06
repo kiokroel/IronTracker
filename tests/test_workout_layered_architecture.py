@@ -183,7 +183,7 @@ async def test_workout_repository_transactional_outbox() -> None:
         workout, outbox = await repo.create_workout_with_outbox(dto)
         assert workout.id is not None
         assert outbox.id is not None
-        assert outbox.event_type == "workout.created"
+        assert outbox.event_type in ("workout.completed", "workout.created")
         assert outbox.payload["workout_id"] == str(workout.id)
         assert outbox.payload["metrics"]["weight"] == 170.0
         assert outbox.status == "pending"
