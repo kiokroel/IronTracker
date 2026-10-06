@@ -7,7 +7,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from shared.contracts.src.events import WorkoutCreatedEvent
+from shared.contracts.src.events import WorkoutCompletedEvent, WorkoutCreatedEvent
 from workout_service.src.models.outbox import OutboxModel
 from workout_service.src.models.workout import WorkoutModel
 from workout_service.src.repositories.base import BaseRepository
@@ -41,9 +41,16 @@ class WorkoutRepository(BaseRepository[WorkoutModel, WorkoutCreate, WorkoutUpdat
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_all(self, skip: int = 0, limit: int = 100) -> list[WorkoutModel]:
+        """Retrieve all workouts ordered by date descending with pagination."""
+        stmt = select(WorkoutModel).order_by(WorkoutModel.date.desc()).offset(skip).limit(limit)
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
     async def create_workout_with_outbox(
         self,
         workout_in: WorkoutCreate,
+        event_type: str = "workout.completed",
     ) -> tuple[WorkoutModel, OutboxModel]:
         """Create a workout and persist a transactional outbox event atomically.
 
@@ -63,14 +70,25 @@ class WorkoutRepository(BaseRepository[WorkoutModel, WorkoutCreate, WorkoutUpdat
             created_at=now,
         )
 
-        event = WorkoutCreatedEvent(
-            event_id=uuid.uuid4(),
-            occurred_at=now,
-            workout_id=workout.id,
-            user_id=workout.user_id,
-            created_at=workout.created_at,
-            metrics=workout_in.metrics,
-        )
+        event: WorkoutCompletedEvent | WorkoutCreatedEvent
+        if event_type == "workout.completed":
+            event = WorkoutCompletedEvent(
+                event_id=uuid.uuid4(),
+                occurred_at=now,
+                workout_id=workout.id,
+                user_id=workout.user_id,
+                completed_at=workout.created_at,
+                metrics=workout_in.metrics,
+            )
+        else:
+            event = WorkoutCreatedEvent(
+                event_id=uuid.uuid4(),
+                occurred_at=now,
+                workout_id=workout.id,
+                user_id=workout.user_id,
+                created_at=workout.created_at,
+                metrics=workout_in.metrics,
+            )
 
         outbox = OutboxModel(
             id=event.event_id,
@@ -114,6 +132,7 @@ class WorkoutRepository(BaseRepository[WorkoutModel, WorkoutCreate, WorkoutUpdat
         now = datetime.now(UTC)
         payload = {
             "event_id": str(event_id),
+            "occurred_at": now.isoformat(),
             "workout_id": str(db_obj.id),
             "user_id": str(db_obj.user_id),
             "updated_fields": list(obj_data.keys()),
@@ -148,6 +167,7 @@ class WorkoutRepository(BaseRepository[WorkoutModel, WorkoutCreate, WorkoutUpdat
         now = datetime.now(UTC)
         payload = {
             "event_id": str(event_id),
+            "occurred_at": now.isoformat(),
             "workout_id": str(workout.id),
             "user_id": str(workout.user_id),
         }

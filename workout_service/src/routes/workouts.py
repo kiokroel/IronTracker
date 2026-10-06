@@ -10,9 +10,10 @@ from workout_service.src.controllers.workout import WorkoutController
 from workout_service.src.dependencies import get_db, get_optional_user_id
 from workout_service.src.schemas.workout import WorkoutCreate, WorkoutResponse, WorkoutUpdate
 
-router = APIRouter(prefix="/api/workouts", tags=["workouts"])
+router = APIRouter(prefix="/workouts", tags=["workouts"])
 
 
+@router.post("", response_model=WorkoutResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=WorkoutResponse, status_code=status.HTTP_201_CREATED)
 async def create_workout(
     workout_in: WorkoutCreate,
@@ -25,6 +26,7 @@ async def create_workout(
 
 
 @router.get("/{workout_id}", response_model=WorkoutResponse)
+@router.get("/{workout_id}/", response_model=WorkoutResponse, include_in_schema=False)
 async def get_workout(
     workout_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -36,6 +38,7 @@ async def get_workout(
     return WorkoutResponse.model_validate(workout)
 
 
+@router.get("", response_model=list[WorkoutResponse])
 @router.get("/", response_model=list[WorkoutResponse])
 async def list_workouts(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -53,6 +56,7 @@ async def list_workouts(
 
 
 @router.put("/{workout_id}", response_model=WorkoutResponse)
+@router.put("/{workout_id}/", response_model=WorkoutResponse, include_in_schema=False)
 async def update_workout(
     workout_id: UUID,
     workout_update: WorkoutUpdate,
@@ -70,6 +74,7 @@ async def update_workout(
 
 
 @router.delete("/{workout_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{workout_id}/", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
 async def delete_workout(
     workout_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],

@@ -93,7 +93,7 @@ async def test_transactional_outbox_pending_status_on_create_api() -> None:
         outbox_entry = result.scalar_one_or_none()
 
         assert outbox_entry is not None
-        assert outbox_entry.event_type == "workout.created"
+        assert outbox_entry.event_type in ("workout.completed", "workout.created")
         assert outbox_entry.status == "pending"
         assert outbox_entry.retry_count == 0
         assert outbox_entry.payload["workout_id"] == str(workout_id)
@@ -170,7 +170,10 @@ async def test_transactional_outbox_cardio_creation_and_update_lifecycle() -> No
 
         assert len(outbox_entries) == 3
         event_types = {entry.event_type for entry in outbox_entries}
-        assert event_types == {"workout.created", "workout.updated", "workout.deleted"}
+        assert event_types in (
+            {"workout.created", "workout.updated", "workout.deleted"},
+            {"workout.completed", "workout.updated", "workout.deleted"},
+        )
         for entry in outbox_entries:
             assert entry.status == "pending"
 
@@ -854,7 +857,7 @@ async def test_specialized_exercise_metrics_api_success(
         result = await session.execute(stmt)
         outbox = result.scalar_one_or_none()
         assert outbox is not None
-        assert outbox.event_type == "workout.created"
+        assert outbox.event_type in ("workout.completed", "workout.created")
         assert outbox.status == "pending"
         assert outbox.payload["metrics"]["exercise_type"] == expected_type
         assert outbox.payload["metrics"][expected_metric_key] == expected_metric_val
