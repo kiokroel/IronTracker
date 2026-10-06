@@ -194,3 +194,46 @@ async def test_worker_status_and_lifecycle() -> None:
         mock_instance.start.assert_awaited_once()
         mock_instance.run_loop.assert_awaited_once_with(stop_event=stop_event_2)
         mock_instance.stop.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_process_batch_commit_failure_triggers_rollback() -> None:
+    """Verify OutboxProcessor rolls back session when session.commit raises an exception."""
+    event_id = uuid.uuid4()
+    workout_id = uuid.uuid4()
+    payload = {
+        "event_id": str(event_id),
+        "workout_id": str(workout_id),
+        "event_type": "workout.created",
+    }
+
+    async with _test_session_factory() as session:
+        entry = OutboxModel(
+            id=event_id,
+            event_type="workout.created",
+            payload=payload,
+            status="pending",
+            retry_count=0,
+            created_at=datetime.now(UTC),
+        )
+        session.add(entry)
+        await session.commit()
+
+    mock_producer = AsyncMock(spec=AIOKafkaProducer)
+    processor = OutboxProcessor(producer=mock_producer, session_factory=_test_session_factory)
+
+    async with _test_session_factory() as session:
+        with patch.object(
+            session, "commit", side_effect=RuntimeError("Simulated session commit failure")
+        ):
+            with patch.object(session, "rollback", wraps=session.rollback) as mock_rollback:
+                with pytest.raises(RuntimeError, match="Simulated session commit failure"):
+                    await processor.process_batch(session)
+                mock_rollback.assert_awaited_once()
+
+    # Verify that in database the entry was not persisted as processed due to rollback
+    async with _test_session_factory() as verify_session:
+        db_entry = await verify_session.get(OutboxModel, event_id)
+        assert db_entry is not None
+        assert db_entry.status == "pending"
+        assert db_entry.processed_at is None

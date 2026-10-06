@@ -99,12 +99,15 @@ class WorkoutRepository(BaseRepository[WorkoutModel, WorkoutCreate, WorkoutUpdat
             created_at=event.occurred_at,
         )
 
-        self.db.add(workout)
-        self.db.add(outbox)
-        await self.db.commit()
-        await self.db.refresh(workout)
-
-        return workout, outbox
+        try:
+            self.db.add(workout)
+            self.db.add(outbox)
+            await self.db.commit()
+            await self.db.refresh(workout)
+            return workout, outbox
+        except Exception:
+            await self.db.rollback()
+            raise
 
     # Alias for convenience
     create_with_outbox = create_workout_with_outbox
@@ -150,12 +153,15 @@ class WorkoutRepository(BaseRepository[WorkoutModel, WorkoutCreate, WorkoutUpdat
             created_at=now,
         )
 
-        self.db.add(db_obj)
-        self.db.add(outbox)
-        await self.db.commit()
-        await self.db.refresh(db_obj)
-
-        return db_obj, outbox
+        try:
+            self.db.add(db_obj)
+            self.db.add(outbox)
+            await self.db.commit()
+            await self.db.refresh(db_obj)
+            return db_obj, outbox
+        except Exception:
+            await self.db.rollback()
+            raise
 
     async def delete_workout_with_outbox(self, id: UUID) -> bool:
         """Delete a workout and persist a deletion event in outbox atomically."""
@@ -181,7 +187,11 @@ class WorkoutRepository(BaseRepository[WorkoutModel, WorkoutCreate, WorkoutUpdat
             created_at=now,
         )
 
-        self.db.add(outbox)
-        await self.db.delete(workout)
-        await self.db.commit()
-        return True
+        try:
+            self.db.add(outbox)
+            await self.db.delete(workout)
+            await self.db.commit()
+            return True
+        except Exception:
+            await self.db.rollback()
+            raise

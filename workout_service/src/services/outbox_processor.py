@@ -84,7 +84,11 @@ class OutboxProcessor:
                 if entry.retry_count >= self.max_retries:
                     entry.status = "failed"
 
-        await session.commit()
+        try:
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
         return len(entries)
 
     async def run_loop(self, stop_event: asyncio.Event | None = None) -> None:
