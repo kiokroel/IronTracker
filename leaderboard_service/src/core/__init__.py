@@ -13,27 +13,15 @@ from leaderboard_service.src.core.redis import (
     get_redis_pool,
     init_redis_pool,
 )
-from leaderboard_service.src.main import app
-from leaderboard_service.src.routes import router
-from leaderboard_service.src.schemas.health import (
-    HealthResponse,
-    ReadyErrorResponse,
-    ReadyResponse,
-)
 
 __all__ = [
-    "HealthResponse",
-    "ReadyErrorResponse",
-    "ReadyResponse",
     "RedisSettings",
     "Settings",
-    "app",
     "close_redis_pool",
     "get_redis",
     "get_redis_client",
     "get_redis_pool",
     "get_settings",
     "init_redis_pool",
-    "router",
     "settings",
 ]
