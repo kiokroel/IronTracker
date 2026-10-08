@@ -54,7 +54,7 @@ async def _override_db_session() -> AsyncGenerator[None, None]:
 
 @pytest.mark.asyncio
 async def test_transactional_outbox_pending_status_on_create_api() -> None:
-    """Verify that POST /api/workouts/ atomically creates outbox entry with status 'pending'."""
+    """Verify that POST /api/v1/workouts atomically creates outbox entry with status 'pending'."""
     user_id = uuid.uuid4()
     payload = {
         "user_id": str(user_id),
@@ -72,7 +72,7 @@ async def test_transactional_outbox_pending_status_on_create_api() -> None:
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res = await client.post("/api/workouts/", json=payload)
+        res = await client.post("/api/v1/workouts", json=payload)
         assert res.status_code == 201
         data = res.json()
         workout_id = uuid.UUID(data["id"])
@@ -126,7 +126,7 @@ async def test_transactional_outbox_cardio_creation_and_update_lifecycle() -> No
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # 1. Create cardio workout
-        res_create = await client.post("/api/workouts/", json=create_payload)
+        res_create = await client.post("/api/v1/workouts", json=create_payload)
         assert res_create.status_code == 201
         workout_id = uuid.UUID(res_create.json()["id"])
 
@@ -141,7 +141,7 @@ async def test_transactional_outbox_cardio_creation_and_update_lifecycle() -> No
             }
         }
         res_update = await client.put(
-            f"/api/workouts/{workout_id}",
+            f"/api/v1/workouts/{workout_id}",
             json=update_payload,
             headers={"X-User-ID": str(user_id)},
         )
@@ -150,7 +150,7 @@ async def test_transactional_outbox_cardio_creation_and_update_lifecycle() -> No
 
         # 3. Delete workout
         res_delete = await client.delete(
-            f"/api/workouts/{workout_id}",
+            f"/api/v1/workouts/{workout_id}",
             headers={"X-User-ID": str(user_id)},
         )
         assert res_delete.status_code == 204
@@ -282,7 +282,7 @@ async def test_jsonb_validation_missing_discriminator_returns_422() -> None:
     }
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res = await client.post("/api/workouts/", json=payload)
+        res = await client.post("/api/v1/workouts", json=payload)
     assert res.status_code == 422
     assert "exercise_type" in res.text
 
@@ -300,7 +300,7 @@ async def test_jsonb_validation_invalid_discriminator_returns_422() -> None:
     }
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res = await client.post("/api/workouts/", json=payload)
+        res = await client.post("/api/v1/workouts", json=payload)
     assert res.status_code == 422
 
 
@@ -388,7 +388,7 @@ async def test_jsonb_validation_invalid_strength_metrics_returns_422(
     }
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res = await client.post("/api/workouts/", json=payload)
+        res = await client.post("/api/v1/workouts", json=payload)
     assert res.status_code == 422, (
         f"Expected 422 for metrics: {invalid_strength_metrics}, got {res.status_code}"
     )
@@ -484,7 +484,7 @@ async def test_jsonb_validation_invalid_cardio_metrics_returns_422(
     }
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res = await client.post("/api/workouts/", json=payload)
+        res = await client.post("/api/v1/workouts", json=payload)
     assert res.status_code == 422, (
         f"Expected 422 for metrics: {invalid_cardio_metrics}, got {res.status_code}"
     )
@@ -508,7 +508,7 @@ async def test_jsonb_validation_on_update_returns_422() -> None:
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res_create = await client.post("/api/workouts/", json=valid_create)
+        res_create = await client.post("/api/v1/workouts", json=valid_create)
         assert res_create.status_code == 201
         workout_id = uuid.UUID(res_create.json()["id"])
 
@@ -523,14 +523,14 @@ async def test_jsonb_validation_on_update_returns_422() -> None:
             }
         }
         res_update = await client.put(
-            f"/api/workouts/{workout_id}",
+            f"/api/v1/workouts/{workout_id}",
             json=invalid_update,
             headers={"X-User-ID": str(user_id)},
         )
         assert res_update.status_code == 422
 
         # Cleanup
-        await client.delete(f"/api/workouts/{workout_id}", headers={"X-User-ID": str(user_id)})
+        await client.delete(f"/api/v1/workouts/{workout_id}", headers={"X-User-ID": str(user_id)})
 
     # Clean up outbox entries
     async with _test_session_factory() as session:
@@ -569,13 +569,13 @@ async def test_idor_protection_prevents_unauthorized_access() -> None:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Create workout owned by User A
-        res_create = await client.post("/api/workouts/", json=create_payload)
+        res_create = await client.post("/api/v1/workouts", json=create_payload)
         assert res_create.status_code == 201
         workout_id = uuid.UUID(res_create.json()["id"])
 
         # 1. IDOR on GET: User B attempts to view User A's workout -> 403 Forbidden
         res_get_unauthorized = await client.get(
-            f"/api/workouts/{workout_id}",
+            f"/api/v1/workouts/{workout_id}",
             headers={"X-User-ID": str(user_b)},
         )
         assert res_get_unauthorized.status_code == 403
@@ -583,7 +583,7 @@ async def test_idor_protection_prevents_unauthorized_access() -> None:
 
         # 2. IDOR on PUT: User B attempts to modify User A's workout -> 403 Forbidden
         res_put_unauthorized = await client.put(
-            f"/api/workouts/{workout_id}",
+            f"/api/v1/workouts/{workout_id}",
             json={"type": "tampered_workout"},
             headers={"X-User-ID": str(user_b)},
         )
@@ -592,7 +592,7 @@ async def test_idor_protection_prevents_unauthorized_access() -> None:
 
         # 3. IDOR on DELETE: User B attempts to delete User A's workout -> 403 Forbidden
         res_delete_unauthorized = await client.delete(
-            f"/api/workouts/{workout_id}",
+            f"/api/v1/workouts/{workout_id}",
             headers={"X-User-ID": str(user_b)},
         )
         assert res_delete_unauthorized.status_code == 403
@@ -600,7 +600,7 @@ async def test_idor_protection_prevents_unauthorized_access() -> None:
 
         # 4. Legitimate access: User A can successfully view workout -> 200 OK
         res_get_owner = await client.get(
-            f"/api/workouts/{workout_id}",
+            f"/api/v1/workouts/{workout_id}",
             headers={"X-User-ID": str(user_a)},
         )
         assert res_get_owner.status_code == 200
@@ -608,7 +608,7 @@ async def test_idor_protection_prevents_unauthorized_access() -> None:
 
         # 5. Legitimate modification: User A can update workout -> 200 OK
         res_put_owner = await client.put(
-            f"/api/workouts/{workout_id}",
+            f"/api/v1/workouts/{workout_id}",
             json={"type": "weighted_pull_up"},
             headers={"X-User-ID": str(user_a)},
         )
@@ -617,7 +617,7 @@ async def test_idor_protection_prevents_unauthorized_access() -> None:
 
         # 6. Legitimate deletion: User A can delete their workout -> 204 No Content
         res_delete_owner = await client.delete(
-            f"/api/workouts/{workout_id}",
+            f"/api/v1/workouts/{workout_id}",
             headers={"X-User-ID": str(user_a)},
         )
         assert res_delete_owner.status_code == 204
@@ -640,7 +640,7 @@ async def test_idor_invalid_uuid_header_returns_400() -> None:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         res = await client.get(
-            f"/api/workouts/{workout_id}",
+            f"/api/v1/workouts/{workout_id}",
             headers={"X-User-ID": "admin' OR '1'='1"},
         )
     assert res.status_code == 400
@@ -671,7 +671,7 @@ async def test_sql_injection_protection_in_payload() -> None:
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res = await client.post("/api/workouts/", json=payload)
+        res = await client.post("/api/v1/workouts", json=payload)
         assert res.status_code == 201
         data = res.json()
         workout_id = uuid.UUID(data["id"])
@@ -702,15 +702,15 @@ async def test_sql_injection_protection_in_query_parameters() -> None:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # SQL injection in skip
-        res_skip = await client.get("/api/workouts/?skip=1; DROP TABLE workouts; --")
+        res_skip = await client.get("/api/v1/workouts?skip=1; DROP TABLE workouts; --")
         assert res_skip.status_code == 422
 
         # SQL injection in limit
-        res_limit = await client.get("/api/workouts/?limit=' OR 1=1 --")
+        res_limit = await client.get("/api/v1/workouts?limit=' OR 1=1 --")
         assert res_limit.status_code == 422
 
         # SQL injection in user_id filter
-        res_uid = await client.get("/api/workouts/?user_id=' OR '1'='1")
+        res_uid = await client.get("/api/v1/workouts?user_id=' OR '1'='1")
         assert res_uid.status_code == 422
 
 
@@ -839,7 +839,7 @@ async def test_specialized_exercise_metrics_api_success(
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res = await client.post("/api/workouts/", json=payload)
+        res = await client.post("/api/v1/workouts", json=payload)
         assert res.status_code == 201, f"Failed with {res.status_code}: {res.text}"
         data = res.json()
         workout_id = uuid.UUID(data["id"])
@@ -982,7 +982,7 @@ async def test_specialized_exercise_metrics_api_validation_errors(
     }
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res = await client.post("/api/workouts/", json=payload)
+        res = await client.post("/api/v1/workouts", json=payload)
     assert res.status_code == 422, (
         f"Expected 422 for metrics: {invalid_specialized_metrics}, got {res.status_code}"
     )
@@ -1007,7 +1007,7 @@ async def test_api_backward_compatibility_exercise_field_normalization() -> None
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res = await client.post("/api/workouts/", json=payload)
+        res = await client.post("/api/v1/workouts", json=payload)
         assert res.status_code == 201, f"Failed with {res.status_code}: {res.text}"
         data = res.json()
         workout_id = uuid.UUID(data["id"])
