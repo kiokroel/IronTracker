@@ -282,7 +282,7 @@ async def test_workout_controller_workflow() -> None:
 
 @pytest.mark.asyncio
 async def test_workout_api_endpoints_via_async_client() -> None:
-    """Verify /api/workouts/ endpoints using httpx.AsyncClient with mock DB session."""
+    """Verify /api/v1/workouts endpoints using httpx.AsyncClient with mock DB session."""
     workout_id = uuid.uuid4()
     mock_session = AsyncMock(spec=AsyncSession)
 
@@ -295,16 +295,16 @@ async def test_workout_api_endpoints_via_async_client() -> None:
     try:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            # 1. Test POST /api/workouts/ with invalid payload (422)
+            # 1. Test POST /api/v1/workouts with invalid payload (422)
             res_invalid = await client.post(
-                "/api/workouts/",
+                "/api/v1/workouts",
                 json={"type": "invalid"},
             )
             assert res_invalid.status_code == 422
 
             # 2. Test dependencies.get_optional_user_id
             res_invalid_header = await client.get(
-                f"/api/workouts/{workout_id}",
+                f"/api/v1/workouts/{workout_id}",
                 headers={"X-User-ID": "invalid-uuid"},
             )
             assert res_invalid_header.status_code == 400

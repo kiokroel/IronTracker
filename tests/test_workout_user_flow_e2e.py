@@ -53,15 +53,15 @@ async def _override_db_session() -> AsyncGenerator[None, None]:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("base_prefix", ["/api/v1/workouts", "/workouts"])
+@pytest.mark.parametrize("base_prefix", ["/api/v1/workouts"])
 async def test_workout_user_flow_strength_journey_e2e(base_prefix: str) -> None:
     """E2E Test: Full User Journey for Strength Workout.
 
     Flow:
-    1. POST /api/v1/workouts/ (Create Strength workout with JSONB validation).
+    1. POST /api/v1/workouts (Create Strength workout with JSONB validation).
     2. Check Outbox: atomic event 'workout.created' with status 'pending'.
     3. GET /api/v1/workouts/{id} (Fetch workout by ID with X-User-ID header).
-    4. GET /api/v1/workouts/ (Query list with user_id filter and pagination).
+    4. GET /api/v1/workouts (Query list with user_id filter and pagination).
     5. PUT /api/v1/workouts/{id} (Full update and check outbox 'workout.updated').
     6. PATCH /api/v1/workouts/{id} (Partial update and check outbox 'workout.updated').
     7. DELETE /api/v1/workouts/{id} (Delete and check outbox 'workout.deleted').
@@ -87,7 +87,7 @@ async def test_workout_user_flow_strength_journey_e2e(base_prefix: str) -> None:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Step 1: Create workout
-        res_create = await client.post(f"{base_prefix}/", json=create_payload)
+        res_create = await client.post(base_prefix, json=create_payload)
         assert res_create.status_code == 201, f"Create failed: {res_create.text}"
         data_create = res_create.json()
         workout_id = uuid.UUID(data_create["id"])
@@ -127,7 +127,7 @@ async def test_workout_user_flow_strength_journey_e2e(base_prefix: str) -> None:
         assert data_get["metrics"]["weight"] == 120.0
 
         # Step 4: List workouts for user
-        res_list = await client.get(f"{base_prefix}/?user_id={user_id}&skip=0&limit=10")
+        res_list = await client.get(f"{base_prefix}?user_id={user_id}&skip=0&limit=10")
         assert res_list.status_code == 200
         items_list = res_list.json()
         assert len(items_list) >= 1
@@ -246,7 +246,7 @@ async def test_workout_user_flow_cardio_journey_e2e() -> None:
     """E2E Test: Full User Journey for Cardio Workout with JSONB validation & Outbox.
 
     Flow:
-    1. POST /api/v1/workouts/ (Create Cardio workout: distance, duration, HR).
+    1. POST /api/v1/workouts (Create Cardio workout: distance, duration, HR).
     2. Check Outbox: 'workout.created' with status 'pending'.
     3. GET /api/v1/workouts/{id} (Validate cardio fields).
     4. PATCH /api/v1/workouts/{id} (Increase distance).
@@ -274,7 +274,7 @@ async def test_workout_user_flow_cardio_journey_e2e() -> None:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # 1. Create cardio workout
-        res_create = await client.post("/api/v1/workouts/", json=cardio_payload)
+        res_create = await client.post("/api/v1/workouts", json=cardio_payload)
         assert res_create.status_code == 201
         data = res_create.json()
         workout_id = uuid.UUID(data["id"])
@@ -386,7 +386,7 @@ async def test_workout_user_flow_pagination_and_user_filter_e2e() -> None:
                     "reps": 8,
                 },
             }
-            res = await client.post("/api/v1/workouts/", json=payload_a)
+            res = await client.post("/api/v1/workouts", json=payload_a)
             assert res.status_code == 201
             created_ids.append(uuid.UUID(res.json()["id"]))
 
@@ -403,36 +403,36 @@ async def test_workout_user_flow_pagination_and_user_filter_e2e() -> None:
                     "duration_minutes": 25.0 + j,
                 },
             }
-            res = await client.post("/api/v1/workouts/", json=payload_b)
+            res = await client.post("/api/v1/workouts", json=payload_b)
             assert res.status_code == 201
             created_ids.append(uuid.UUID(res.json()["id"]))
 
         # Test Filter by user_a: returns exactly 3
-        res_a = await client.get(f"/api/v1/workouts/?user_id={user_a}")
+        res_a = await client.get(f"/api/v1/workouts?user_id={user_a}")
         assert res_a.status_code == 200
         list_a = res_a.json()
         assert len(list_a) == 3
         assert all(item["user_id"] == str(user_a) for item in list_a)
 
         # Test Pagination on user_a: skip=0, limit=2
-        res_page_1 = await client.get(f"/api/v1/workouts/?user_id={user_a}&skip=0&limit=2")
+        res_page_1 = await client.get(f"/api/v1/workouts?user_id={user_a}&skip=0&limit=2")
         assert res_page_1.status_code == 200
         assert len(res_page_1.json()) == 2
 
         # Test Pagination on user_a: skip=2, limit=2
-        res_page_2 = await client.get(f"/api/v1/workouts/?user_id={user_a}&skip=2&limit=2")
+        res_page_2 = await client.get(f"/api/v1/workouts?user_id={user_a}&skip=2&limit=2")
         assert res_page_2.status_code == 200
         assert len(res_page_2.json()) == 1
 
         # Test Filter by user_b: returns exactly 2
-        res_b = await client.get(f"/api/v1/workouts/?user_id={user_b}")
+        res_b = await client.get(f"/api/v1/workouts?user_id={user_b}")
         assert res_b.status_code == 200
         list_b = res_b.json()
         assert len(list_b) == 2
         assert all(item["user_id"] == str(user_b) for item in list_b)
 
         # Test boundary pagination: skip beyond count returns empty list
-        res_empty = await client.get(f"/api/v1/workouts/?user_id={user_a}&skip=10&limit=10")
+        res_empty = await client.get(f"/api/v1/workouts?user_id={user_a}&skip=10&limit=10")
         assert res_empty.status_code == 200
         assert res_empty.json() == []
 
@@ -491,7 +491,7 @@ async def test_workout_user_flow_idor_protection_e2e() -> None:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Step 1: Owner creates workout
-        res_create = await client.post("/api/v1/workouts/", json=create_payload)
+        res_create = await client.post("/api/v1/workouts", json=create_payload)
         assert res_create.status_code == 201
         workout_id = uuid.UUID(res_create.json()["id"])
 
@@ -718,7 +718,7 @@ async def test_workout_user_flow_negative_validation_jsonb_e2e(
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res = await client.post("/api/v1/workouts/", json=payload)
+        res = await client.post("/api/v1/workouts", json=payload)
         assert res.status_code == expected_status, (
             f"Expected {expected_status} for {invalid_metrics}, got {res.status_code}: {res.text}"
         )
@@ -745,7 +745,7 @@ async def test_workout_user_flow_negative_validation_on_update_e2e() -> None:
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res_create = await client.post("/api/v1/workouts/", json=create_payload)
+        res_create = await client.post("/api/v1/workouts", json=create_payload)
         assert res_create.status_code == 201
         workout_id = uuid.UUID(res_create.json()["id"])
 
@@ -847,7 +847,7 @@ async def test_workout_user_flow_atomic_rollback_on_create_failure_e2e() -> None
     ):
         transport = ASGITransport(app=app, raise_app_exceptions=False)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            res = await client.post("/api/v1/workouts/", json=payload)
+            res = await client.post("/api/v1/workouts", json=payload)
             assert res.status_code == 500
 
     # Ensure neither workout nor outbox record was written
@@ -882,7 +882,7 @@ async def test_workout_user_flow_atomic_rollback_on_update_failure_e2e() -> None
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res = await client.post("/api/v1/workouts/", json=create_payload)
+        res = await client.post("/api/v1/workouts", json=create_payload)
         assert res.status_code == 201
         workout_id = uuid.UUID(res.json()["id"])
 

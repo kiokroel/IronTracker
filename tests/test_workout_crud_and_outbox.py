@@ -50,19 +50,12 @@ async def _override_db_session() -> AsyncGenerator[None, None]:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "endpoint",
-    [
-        "/workouts",
-        "/workouts/",
-        "/api/workouts",
-        "/api/workouts/",
-        "/api/v1/workouts",
-        "/api/v1/workouts/",
-    ],
-)
-async def test_create_workout_all_endpoint_variants_and_outbox(endpoint: str) -> None:
-    """Verify POST on all route variants creates workout and outbox event with status 'pending'."""
+async def test_create_workout_canonical_endpoint_and_outbox() -> None:
+    """Verify POST on canonical /api/v1 route creates workout and outbox event.
+
+    Ensures outbox status is 'pending'.
+    """
+    endpoint = "/api/v1/workouts"
     user_id = uuid.uuid4()
     payload = {
         "user_id": str(user_id),
@@ -119,7 +112,7 @@ async def test_create_workout_all_endpoint_variants_and_outbox(endpoint: str) ->
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("base_path", ["/workouts", "/api/workouts", "/api/v1/workouts"])
+@pytest.mark.parametrize("base_path", ["/api/v1/workouts"])
 async def test_list_workouts_pagination_and_filter(base_path: str) -> None:
     """Verify GET list endpoints support pagination (skip, limit) and filtering by user_id."""
     user_a = uuid.uuid4()
@@ -172,8 +165,8 @@ async def test_list_workouts_pagination_and_filter(base_path: str) -> None:
         for item in items_a:
             assert item["user_id"] == str(user_a)
 
-        # Pagination test on base_path/
-        res_paginated = await client.get(f"{base_path}/?user_id={user_a}&skip=1&limit=2")
+        # Pagination test on base_path
+        res_paginated = await client.get(f"{base_path}?user_id={user_a}&skip=1&limit=2")
         assert res_paginated.status_code == 200
         items_paginated = res_paginated.json()
         assert len(items_paginated) == 2
@@ -188,9 +181,9 @@ async def test_list_workouts_pagination_and_filter(base_path: str) -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("prefix", ["/workouts", "/api/workouts"])
+@pytest.mark.parametrize("prefix", ["/api/v1/workouts"])
 async def test_get_workout_by_id_endpoints_and_idor(prefix: str) -> None:
-    """Verify GET /{id} on both prefixes with IDOR checks and 404 handling."""
+    """Verify GET /{id} on canonical /api/v1 prefix with IDOR checks and 404 handling."""
     user_owner = uuid.uuid4()
     user_attacker = uuid.uuid4()
     now = datetime.now(UTC)
@@ -244,7 +237,7 @@ async def test_get_workout_by_id_endpoints_and_idor(prefix: str) -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("prefix", ["/workouts", "/api/workouts"])
+@pytest.mark.parametrize("prefix", ["/api/v1/workouts"])
 async def test_update_workout_endpoints_and_outbox_and_idor(prefix: str) -> None:
     """Verify PUT /{id} updates workout, creates outbox event, and enforces IDOR."""
     user_owner = uuid.uuid4()
@@ -338,7 +331,7 @@ async def test_update_workout_endpoints_and_outbox_and_idor(prefix: str) -> None
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("prefix", ["/workouts", "/api/workouts"])
+@pytest.mark.parametrize("prefix", ["/api/v1/workouts"])
 async def test_delete_workout_endpoints_and_outbox_and_idor(prefix: str) -> None:
     """Verify DELETE /{id} removes workout, creates outbox event, and enforces IDOR."""
     user_owner = uuid.uuid4()
@@ -638,7 +631,7 @@ async def test_api_create_workout_rollback_prevents_phantom_records() -> None:
     ):
         transport = ASGITransport(app=app, raise_app_exceptions=False)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            res = await client.post("/api/workouts/", json=payload)
+            res = await client.post("/api/v1/workouts", json=payload)
             assert res.status_code == 500
 
     async with _test_session_factory() as session:
@@ -696,7 +689,7 @@ async def test_api_update_workout_rollback_prevents_phantom_outbox() -> None:
         transport = ASGITransport(app=app, raise_app_exceptions=False)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             res = await client.put(
-                f"/api/workouts/{workout_id}",
+                f"/api/v1/workouts/{workout_id}",
                 json=update_payload,
                 headers={"X-User-ID": str(user_id)},
             )
@@ -751,7 +744,7 @@ async def test_api_delete_workout_rollback_prevents_phantom_outbox() -> None:
         transport = ASGITransport(app=app, raise_app_exceptions=False)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             res = await client.delete(
-                f"/api/workouts/{workout_id}",
+                f"/api/v1/workouts/{workout_id}",
                 headers={"X-User-ID": str(user_id)},
             )
             assert res.status_code == 500
