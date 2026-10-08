@@ -1,9 +1,13 @@
 from __future__ import annotations
 
-"""Service layer package for Leaderboard Service.
+from leaderboard_service.src.services.consumer import WorkoutEventConsumer
+from leaderboard_service.src.services.tonnage import (
+    calculate_workout_tonnage,
+    update_user_tonnage,
+)
 
-This package contains business logic and services for managing real-time
-leaderboards, rankings, and athlete scores backed by Redis Sorted Sets (ZSET).
-"""
-
-__all__: list[str] = []
+__all__ = [
+    "WorkoutEventConsumer",
+    "calculate_workout_tonnage",
+    "update_user_tonnage",
+]

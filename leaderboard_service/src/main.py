@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -19,6 +20,7 @@ from leaderboard_service.src.schemas.health import (
     ReadyErrorResponse,
     ReadyResponse,
 )
+from leaderboard_service.src.services.consumer import WorkoutEventConsumer
 
 logger = logging.getLogger(__name__)
 
@@ -28,10 +30,30 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Lifespan context manager for graceful startup and shutdown of resources."""
     logger.info("Starting up IronTracker Leaderboard Service...")
     await init_redis_pool()
+    consumer: WorkoutEventConsumer | None = None
+    consumer_task: asyncio.Task[None] | None = None
+    consumer_stop_event: asyncio.Event | None = None
+
+    if settings.enable_kafka_consumer:
+        logger.info("Enabling background Kafka consumer in lifespan...")
+        consumer_stop_event = asyncio.Event()
+        consumer = WorkoutEventConsumer(settings=settings)
+        await consumer.start()
+        consumer_task = asyncio.create_task(consumer.consume(stop_event=consumer_stop_event))
+
     try:
         yield
     finally:
         logger.info("Shutting down IronTracker Leaderboard Service...")
+        if consumer_stop_event is not None:
+            consumer_stop_event.set()
+        if consumer_task is not None:
+            try:
+                await asyncio.wait_for(consumer_task, timeout=5.0)
+            except (TimeoutError, asyncio.CancelledError):
+                consumer_task.cancel()
+        if consumer is not None:
+            await consumer.stop()
         await close_redis_pool()
 
 
