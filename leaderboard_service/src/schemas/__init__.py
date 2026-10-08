@@ -5,9 +5,17 @@ from leaderboard_service.src.schemas.health import (
     ReadyErrorResponse,
     ReadyResponse,
 )
+from leaderboard_service.src.schemas.leaderboard import (
+    LeaderboardEntry,
+    LeaderboardResponse,
+    UserRankResponse,
+)
 
 __all__ = [
     "HealthResponse",
+    "LeaderboardEntry",
+    "LeaderboardResponse",
     "ReadyErrorResponse",
     "ReadyResponse",
+    "UserRankResponse",
 ]
