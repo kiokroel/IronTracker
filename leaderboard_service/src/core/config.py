@@ -74,6 +74,58 @@ class RedisSettings(BaseSettings):
         return self.redis_url
 
 
+class KafkaSettings(BaseSettings):
+    """Configuration for Kafka connection, consumer group, and topics."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
+    )
+
+    kafka_bootstrap_servers: str = Field(
+        default="localhost:9092",
+        validation_alias=AliasChoices("KAFKA_BOOTSTRAP_SERVERS", "kafka_bootstrap_servers"),
+        description="Kafka bootstrap servers connection string",
+    )
+    kafka_consumer_group: str = Field(
+        default="leaderboard-service-group",
+        validation_alias=AliasChoices("KAFKA_CONSUMER_GROUP", "kafka_consumer_group"),
+        description="Kafka consumer group ID",
+    )
+    kafka_workout_topic: str = Field(
+        default="workout.completed",
+        validation_alias=AliasChoices("KAFKA_WORKOUT_TOPIC", "kafka_workout_topic"),
+        description="Kafka topic for completed workout events",
+    )
+    enable_kafka_consumer: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("ENABLE_KAFKA_CONSUMER", "enable_kafka_consumer"),
+        description="Flag to enable background Kafka consumer in FastAPI lifespan",
+    )
+
+    @property
+    def KAFKA_BOOTSTRAP_SERVERS(self) -> str:
+        """Uppercase accessor for Kafka bootstrap servers."""
+        return self.kafka_bootstrap_servers
+
+    @property
+    def KAFKA_CONSUMER_GROUP(self) -> str:
+        """Uppercase accessor for Kafka consumer group."""
+        return self.kafka_consumer_group
+
+    @property
+    def KAFKA_WORKOUT_TOPIC(self) -> str:
+        """Uppercase accessor for Kafka workout topic."""
+        return self.kafka_workout_topic
+
+    @property
+    def ENABLE_KAFKA_CONSUMER(self) -> bool:
+        """Uppercase accessor for Kafka consumer enable flag."""
+        return self.enable_kafka_consumer
+
+
 class Settings(BaseSettings):
     """Leaderboard Service application settings with safe defaults."""
 
@@ -126,6 +178,32 @@ class Settings(BaseSettings):
         description="Optional Redis password",
     )
 
+    kafka_bootstrap_servers: str = Field(
+        default="localhost:9092",
+        validation_alias=AliasChoices("KAFKA_BOOTSTRAP_SERVERS", "kafka_bootstrap_servers"),
+        description="Kafka bootstrap servers connection string",
+    )
+    kafka_consumer_group: str = Field(
+        default="leaderboard-service-group",
+        validation_alias=AliasChoices("KAFKA_CONSUMER_GROUP", "kafka_consumer_group"),
+        description="Kafka consumer group ID",
+    )
+    kafka_workout_topic: str = Field(
+        default="workout.completed",
+        validation_alias=AliasChoices("KAFKA_WORKOUT_TOPIC", "kafka_workout_topic"),
+        description="Kafka topic for completed workout events",
+    )
+    leaderboard_tonnage_key: str = Field(
+        default="leaderboard:tonnage",
+        validation_alias=AliasChoices("LEADERBOARD_TONNAGE_KEY", "leaderboard_tonnage_key"),
+        description="Redis Sorted Set key for user tonnage leaderboard",
+    )
+    enable_kafka_consumer: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("ENABLE_KAFKA_CONSUMER", "enable_kafka_consumer"),
+        description="Flag to enable background Kafka consumer in FastAPI lifespan",
+    )
+
     @property
     def redis(self) -> RedisSettings:
         """Return dedicated RedisSettings instance."""
@@ -134,6 +212,16 @@ class Settings(BaseSettings):
             redis_port=self.redis_port,
             redis_db=self.redis_db,
             redis_password=self.redis_password,
+        )
+
+    @property
+    def kafka(self) -> KafkaSettings:
+        """Return dedicated KafkaSettings instance."""
+        return KafkaSettings(
+            kafka_bootstrap_servers=self.kafka_bootstrap_servers,
+            kafka_consumer_group=self.kafka_consumer_group,
+            kafka_workout_topic=self.kafka_workout_topic,
+            enable_kafka_consumer=self.enable_kafka_consumer,
         )
 
     @property
@@ -188,6 +276,31 @@ class Settings(BaseSettings):
         """Uppercase accessor for Redis connection URL."""
         return self.redis_url
 
+    @property
+    def KAFKA_BOOTSTRAP_SERVERS(self) -> str:
+        """Uppercase accessor for Kafka bootstrap servers."""
+        return self.kafka_bootstrap_servers
+
+    @property
+    def KAFKA_CONSUMER_GROUP(self) -> str:
+        """Uppercase accessor for Kafka consumer group."""
+        return self.kafka_consumer_group
+
+    @property
+    def KAFKA_WORKOUT_TOPIC(self) -> str:
+        """Uppercase accessor for Kafka workout topic."""
+        return self.kafka_workout_topic
+
+    @property
+    def LEADERBOARD_TONNAGE_KEY(self) -> str:
+        """Uppercase accessor for leaderboard tonnage key."""
+        return self.leaderboard_tonnage_key
+
+    @property
+    def ENABLE_KAFKA_CONSUMER(self) -> bool:
+        """Uppercase accessor for Kafka consumer enable flag."""
+        return self.enable_kafka_consumer
+
 
 @lru_cache
 def get_settings() -> Settings:
@@ -198,6 +311,7 @@ def get_settings() -> Settings:
 settings = get_settings()
 
 __all__ = [
+    "KafkaSettings",
     "RedisSettings",
     "Settings",
     "get_settings",
