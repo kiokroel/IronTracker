@@ -20,7 +20,7 @@ class WorkoutController:
     async def create_workout(
         self,
         workout_in: WorkoutCreate,
-        event_type: str = "workout.completed",
+        event_type: str = "workout.created",
     ) -> WorkoutModel:
         """Create a new workout record and record its outbox event atomically."""
         workout, _ = await self.workout_repo.create_workout_with_outbox(

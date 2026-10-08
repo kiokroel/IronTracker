@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Header, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from workout_service.src.controllers.workout import WorkoutController
@@ -18,10 +18,19 @@ router = APIRouter(prefix="/workouts", tags=["workouts"])
 async def create_workout(
     workout_in: WorkoutCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
+    event_type: Annotated[
+        str | None,
+        Query(description="Type of outbox event ('workout.created' or 'workout.completed')"),
+    ] = None,
+    x_event_type: Annotated[
+        str | None,
+        Header(alias="X-Event-Type", description="Optional outbox event type header"),
+    ] = None,
 ) -> WorkoutResponse:
     """Create a new workout record with validated JSONB metrics and transactional outbox."""
     controller = WorkoutController(db)
-    workout = await controller.create_workout(workout_in)
+    resolved_event_type = x_event_type or event_type or "workout.created"
+    workout = await controller.create_workout(workout_in, event_type=resolved_event_type)
     return WorkoutResponse.model_validate(workout)
 
 
@@ -57,6 +66,8 @@ async def list_workouts(
 
 @router.put("/{workout_id}", response_model=WorkoutResponse)
 @router.put("/{workout_id}/", response_model=WorkoutResponse, include_in_schema=False)
+@router.patch("/{workout_id}", response_model=WorkoutResponse)
+@router.patch("/{workout_id}/", response_model=WorkoutResponse, include_in_schema=False)
 async def update_workout(
     workout_id: UUID,
     workout_update: WorkoutUpdate,

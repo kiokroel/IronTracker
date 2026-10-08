@@ -50,7 +50,7 @@ class WorkoutRepository(BaseRepository[WorkoutModel, WorkoutCreate, WorkoutUpdat
     async def create_workout_with_outbox(
         self,
         workout_in: WorkoutCreate,
-        event_type: str = "workout.completed",
+        event_type: str = "workout.created",
     ) -> tuple[WorkoutModel, OutboxModel]:
         """Create a workout and persist a transactional outbox event atomically.
 
