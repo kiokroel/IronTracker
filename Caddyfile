@@ -5,9 +5,8 @@
 :80 {
     # Health check for API Gateway
     handle /health {
-        respond "{\"status\":\"ok\",\"service\":\"caddy-gateway\"}" 200 {
-            header Content-Type application/json
-        }
+        header Content-Type application/json
+        respond "{\"status\":\"ok\",\"service\":\"caddy-gateway\"}" 200
     }
 
     # Reverse proxy to Workout Service
@@ -22,8 +21,7 @@
 
     # Default fallback handler: 404 Not Found
     handle {
-        respond "{\"detail\":\"Not Found\"}" 404 {
-            header Content-Type application/json
-        }
+        header Content-Type application/json
+        respond "{\"detail\":\"Not Found\"}" 404
     }
 }
