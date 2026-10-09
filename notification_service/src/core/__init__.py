@@ -13,35 +13,15 @@ from notification_service.src.core.rabbitmq import (
     get_rabbitmq_connection,
     init_rabbitmq,
 )
-from notification_service.src.schemas.health import (
-    HealthResponse,
-    QueueTopologyResponse,
-)
-from notification_service.src.services.consumer import (
-    NotificationCommandConsumer,
-)
-from notification_service.src.worker import (
-    consume_events,
-    consume_messages,
-    get_service_status,
-    run_worker,
-)
 
 __all__ = [
-    "HealthResponse",
-    "NotificationCommandConsumer",
-    "QueueTopologyResponse",
     "RabbitMQSettings",
     "Settings",
     "close_rabbitmq",
-    "consume_events",
-    "consume_messages",
     "declare_queue_topology",
     "get_rabbitmq_channel",
     "get_rabbitmq_connection",
-    "get_service_status",
     "get_settings",
     "init_rabbitmq",
-    "run_worker",
     "settings",
 ]
