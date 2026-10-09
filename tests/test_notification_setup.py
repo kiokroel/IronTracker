@@ -11,6 +11,7 @@ import pytest
 from notification_service.src import (
     HealthResponse,
     NotificationCommandConsumer,
+    NotificationDispatchResult,
     QueueTopologyResponse,
     RabbitMQSettings,
     Settings,
@@ -24,10 +25,6 @@ from notification_service.src import (
     get_settings,
     init_rabbitmq,
     run_worker,
-)
-from shared.contracts.src.commands import (
-    SendAchievementNotificationCommand,
-    SendNotificationCommand,
 )
 
 # ==============================================================================
@@ -258,10 +255,11 @@ async def test_consumer_process_send_notification_command_success() -> None:
 
     result = await consumer.process_message(message_mock)
 
-    assert isinstance(result, SendNotificationCommand)
+    assert isinstance(result, NotificationDispatchResult)
     assert result.user_id == user_id
     assert result.channel == "email"
-    assert result.title == "Workout Logged"
+    assert result.status == "sent"
+    assert result.details["title"] == "Workout Logged"
     message_mock.ack.assert_awaited_once()
     message_mock.nack.assert_not_called()
 
@@ -286,10 +284,11 @@ async def test_consumer_process_send_achievement_notification_command_success() 
 
     result = await consumer.process_message(message_mock)
 
-    assert isinstance(result, SendAchievementNotificationCommand)
+    assert isinstance(result, NotificationDispatchResult)
     assert result.user_id == user_id
-    assert result.achievement_code == "BENCH_100_KG"
-    assert result.title == "Century Club!"
+    assert result.channel == "push"
+    assert result.status == "sent"
+    assert result.details["achievement_code"] == "BENCH_100_KG"
     message_mock.ack.assert_awaited_once()
     message_mock.nack.assert_not_called()
 
