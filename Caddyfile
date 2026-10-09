@@ -1,0 +1,29 @@
+{
+    admin off
+}
+
+:80 {
+    # Health check for API Gateway
+    handle /health {
+        respond "{\"status\":\"ok\",\"service\":\"caddy-gateway\"}" 200 {
+            header Content-Type application/json
+        }
+    }
+
+    # Reverse proxy to Workout Service
+    handle /api/v1/workouts* {
+        reverse_proxy {$WORKOUT_SERVICE_URL:workout-service:8000}
+    }
+
+    # Reverse proxy to Leaderboard Service
+    handle /api/v1/leaderboard* {
+        reverse_proxy {$LEADERBOARD_SERVICE_URL:leaderboard-service:8002}
+    }
+
+    # Default fallback handler: 404 Not Found
+    handle {
+        respond "{\"detail\":\"Not Found\"}" 404 {
+            header Content-Type application/json
+        }
+    }
+}
