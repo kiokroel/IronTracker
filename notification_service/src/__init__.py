@@ -13,6 +13,9 @@ from notification_service.src.core.rabbitmq import (
     get_rabbitmq_connection,
     init_rabbitmq,
 )
+from notification_service.src.schemas.dispatch import (
+    NotificationDispatchResult,
+)
 from notification_service.src.schemas.health import (
     HealthResponse,
     QueueTopologyResponse,
@@ -20,6 +23,11 @@ from notification_service.src.schemas.health import (
 from notification_service.src.services.consumer import (
     NotificationCommandConsumer,
 )
+from notification_service.src.services.dispatcher import (
+    NotificationDispatcher,
+    NotificationProviderError,
+)
+from notification_service.src.services.retry import DLQRetryProcessor
 from notification_service.src.worker import (
     consume_events,
     consume_messages,
@@ -28,8 +36,12 @@ from notification_service.src.worker import (
 )
 
 __all__ = [
+    "DLQRetryProcessor",
     "HealthResponse",
     "NotificationCommandConsumer",
+    "NotificationDispatchResult",
+    "NotificationDispatcher",
+    "NotificationProviderError",
     "QueueTopologyResponse",
     "RabbitMQSettings",
     "Settings",

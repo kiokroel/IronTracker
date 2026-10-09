@@ -6,6 +6,7 @@ import signal
 from typing import Any
 
 from notification_service.src.services.consumer import NotificationCommandConsumer
+from notification_service.src.services.dispatcher import NotificationDispatcher
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,7 @@ async def consume_events(stop_event: asyncio.Event | None = None) -> None:
 async def run_worker(
     stop_event: asyncio.Event | None = None,
     consumer: NotificationCommandConsumer | Any | None = None,
+    dispatcher: NotificationDispatcher | None = None,
 ) -> None:
     """Entrypoint to run the notification worker with graceful shutdown signal handling."""
     if stop_event is None:
@@ -83,8 +85,10 @@ async def run_worker(
 
     _setup_signal_handlers(stop_event)
     logger.info("Running IronTracker notification worker...")
+    active_dispatcher = dispatcher or NotificationDispatcher()
+    active_consumer = consumer or NotificationCommandConsumer(dispatcher=active_dispatcher)
     try:
-        await consume_messages(stop_event=stop_event, consumer=consumer)
+        await consume_messages(stop_event=stop_event, consumer=active_consumer)
     finally:
         logger.info("Notification worker stopped.")
 
@@ -96,7 +100,8 @@ def main() -> None:
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
     stop_event = asyncio.Event()
-    consumer = NotificationCommandConsumer()
+    dispatcher = NotificationDispatcher()
+    consumer = NotificationCommandConsumer(dispatcher=dispatcher)
     try:
         asyncio.run(run_worker(stop_event=stop_event, consumer=consumer))
     except (KeyboardInterrupt, SystemExit):

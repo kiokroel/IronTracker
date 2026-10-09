@@ -19,6 +19,10 @@ from notification_service.src.core.rabbitmq import (
     declare_queue_topology,
     get_rabbitmq_connection,
 )
+from notification_service.src.schemas.dispatch import NotificationDispatchResult
+from notification_service.src.services.dispatcher import (
+    NotificationDispatcher,
+)
 from shared.contracts.src.commands import (
     SendAchievementNotificationCommand,
     SendNotificationCommand,
@@ -35,12 +39,14 @@ class NotificationCommandConsumer:
         settings: Settings | None = None,
         connection: AbstractRobustConnection | None = None,
         channel: AbstractRobustChannel | None = None,
+        dispatcher: NotificationDispatcher | None = None,
     ) -> None:
         self.settings: Settings = settings or get_settings()
         self.connection: AbstractRobustConnection | None = connection
         self._owns_connection: bool = connection is None
         self.channel: AbstractRobustChannel | None = channel
         self._owns_channel: bool = channel is None
+        self.dispatcher: NotificationDispatcher = dispatcher or NotificationDispatcher()
         self.queue: AbstractQueue | None = None
         self._running: bool = False
 
@@ -97,10 +103,10 @@ class NotificationCommandConsumer:
     async def process_message(
         self,
         message: AbstractIncomingMessage | Any,
-    ) -> SendNotificationCommand | SendAchievementNotificationCommand | None:
+    ) -> NotificationDispatchResult | None:
         """Process an incoming RabbitMQ command message.
 
-        Acknowledge message on successful validation and handling.
+        Acknowledge message on successful validation and dispatch.
         Send to Dead Letter Exchange (DLX) via nack(requeue=False) on any error.
         """
         try:
@@ -126,14 +132,15 @@ class NotificationCommandConsumer:
             else:
                 raise ValueError(f"Unsupported command type: {command_type}")
 
-            logger.info("Processed command %s for user %s", command.command_type, command.user_id)
+            logger.info("Dispatching command %s for user %s", command.command_type, command.user_id)
+            result = await self.dispatcher.dispatch(command)
 
             if hasattr(message, "ack"):
                 ack_res = message.ack()
                 if inspect.isawaitable(ack_res):
                     await ack_res
 
-            return command
+            return result
 
         except Exception as exc:
             logger.error("Failed to process message: %s. Rejecting to DLX.", exc)
