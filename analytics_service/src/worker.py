@@ -5,11 +5,13 @@ import logging
 import signal
 from typing import Any
 
+from analytics_service.src.core.config import get_settings
 from analytics_service.src.core.database import (
     close_mongo_client,
     ensure_timeseries_collection,
     init_mongo_client,
 )
+from analytics_service.src.services.consumer import AnalyticsEventConsumer
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +23,7 @@ def get_service_status() -> dict[str, str]:
 
 async def consume_events(
     stop_event: asyncio.Event | None = None,
+    consumer: AnalyticsEventConsumer | None = None,
     handler: Any | None = None,
 ) -> None:
     """Async consumer loop for processing Kafka analytics events.
@@ -29,6 +32,10 @@ async def consume_events(
     and aggregates macro metrics into MongoDB Time Series collections.
     """
     logger.info("Starting analytics event consumer loop...")
+
+    if consumer is not None:
+        await consumer.consume(stop_event=stop_event)
+        return
 
     if stop_event is None:
         logger.info("Single pass execution completed for analytics worker.")
@@ -45,7 +52,10 @@ async def consume_events(
     logger.info("Analytics event consumer stopped gracefully.")
 
 
-async def run_worker(stop_event: asyncio.Event | None = None) -> None:
+async def run_worker(
+    stop_event: asyncio.Event | None = None,
+    consumer: AnalyticsEventConsumer | None = None,
+) -> None:
     """Entrypoint to run the analytics worker with MongoDB lifecycle management."""
     logger.info("Initializing analytics worker and MongoDB connection...")
     await init_mongo_client()
@@ -54,9 +64,25 @@ async def run_worker(stop_event: asyncio.Event | None = None) -> None:
     except Exception as exc:
         logger.warning("Could not ensure timeseries collection during worker startup: %s", exc)
 
+    settings = get_settings()
+    event_consumer = consumer
+    owns_consumer = False
+
+    # Start Kafka consumer if provided or enabled in configuration
+    if event_consumer is None and settings.enable_kafka_consumer:
+        event_consumer = AnalyticsEventConsumer()
+        owns_consumer = True
+
     try:
-        await consume_events(stop_event=stop_event)
+        if owns_consumer and event_consumer is not None:
+            await event_consumer.start()
+        await consume_events(stop_event=stop_event, consumer=event_consumer)
     finally:
+        if owns_consumer and event_consumer is not None:
+            try:
+                await event_consumer.stop()
+            except Exception as exc:
+                logger.warning("Error stopping analytics consumer in worker: %s", exc)
         logger.info("Stopping analytics worker and closing MongoDB client...")
         await close_mongo_client()
 
