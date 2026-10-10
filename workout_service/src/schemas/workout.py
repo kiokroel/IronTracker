@@ -50,7 +50,10 @@ class WorkoutBase(BaseModel):
 class WorkoutCreate(WorkoutBase):
     """Schema for creating a new workout entry."""
 
-    user_id: UUID = Field(description="UUID of the user performing the workout")
+    user_id: UUID | None = Field(
+        default=None,
+        description="UUID of the user performing the workout (optional if authenticated)",
+    )
 
 
 class WorkoutUpdate(BaseModel):

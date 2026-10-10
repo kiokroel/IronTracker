@@ -27,13 +27,24 @@ export const Navbar: React.FC = () => {
           </Link>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {user && (
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs">
-              <UserIcon className="w-3.5 h-3.5 text-amber-500" />
-              <span className="font-semibold text-zinc-200">{user.username}</span>
-              <span className="text-zinc-500">({user.email})</span>
-            </div>
+            <Link
+              to="/profile"
+              title="Личный кабинет / Профиль"
+              className="flex items-center gap-2 px-2.5 py-1.5 sm:px-3 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 hover:bg-zinc-800 hover:border-amber-500/50 hover:text-white transition-all cursor-pointer group"
+            >
+              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-500/10 text-amber-500 group-hover:bg-amber-500 group-hover:text-zinc-950 transition-colors">
+                <UserIcon className="w-3.5 h-3.5" />
+              </div>
+              <span className="font-semibold text-zinc-200 group-hover:text-amber-400 transition-colors hidden sm:inline">
+                {user.username}
+              </span>
+              <span className="text-zinc-500 hidden md:inline">({user.email})</span>
+              <span className="hidden sm:inline-flex items-center text-[10px] font-medium text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded px-1.5 py-0.5 ml-0.5 group-hover:bg-amber-500 group-hover:text-zinc-950 transition-colors">
+                Профиль
+              </span>
+            </Link>
           )}
 
           <Button

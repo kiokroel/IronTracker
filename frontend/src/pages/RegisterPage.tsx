@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Dumbbell, AlertCircle, ArrowRight } from 'lucide-react';
+import { Dumbbell, AlertCircle, ArrowRight, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -14,29 +14,34 @@ export const RegisterPage: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
+  const passwordsMismatch = confirmPassword.length > 0 && password !== confirmPassword;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
     if (!email.trim() || !username.trim() || !password) {
-      setFormError('All fields are required.');
+      setFormError('Все поля обязательны для заполнения.');
       return;
     }
 
     if (username.trim().length < 2) {
-      setFormError('Username must be at least 2 characters long.');
+      setFormError('Имя атлета должно содержать не менее 2 символов.');
       return;
     }
 
     if (password.length < 6) {
-      setFormError('Password must be at least 6 characters long.');
+      setFormError('Пароль должен содержать не менее 6 символов.');
       return;
     }
 
     if (password !== confirmPassword) {
-      setFormError('Passwords do not match.');
+      setFormError('Пароли не совпадают.');
       return;
     }
 
@@ -64,13 +69,13 @@ export const RegisterPage: React.FC = () => {
           <h1 className="text-2xl sm:text-3xl font-black tracking-wider text-white">
             JOIN <span className="text-amber-500">IRONTRACKER</span>
           </h1>
-          <p className="text-sm text-zinc-400">Create your hardcore athlete profile</p>
+          <p className="text-sm text-zinc-400">Регистрация профиля спортсмена</p>
         </div>
 
         <Card className="border-zinc-800 bg-zinc-900/90 shadow-2xl">
           <CardHeader>
-            <CardTitle>Create Athlete Profile</CardTitle>
-            <CardDescription>Enter your details to start tracking workouts</CardDescription>
+            <CardTitle>Создание профиля атлета</CardTitle>
+            <CardDescription>Заполните форму для фиксации тренировочных показателей</CardDescription>
           </CardHeader>
 
           <form onSubmit={handleSubmit}>
@@ -83,10 +88,11 @@ export const RegisterPage: React.FC = () => {
               )}
 
               <Input
-                label="Athlete Username"
+                label="Имя атлета (Username)"
                 placeholder="IronLifter"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
                 required
               />
 
@@ -101,39 +107,66 @@ export const RegisterPage: React.FC = () => {
               />
 
               <Input
-                label="Password"
-                type="password"
-                placeholder="Min. 6 characters"
+                label="Пароль"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Минимум 6 символов"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="new-password"
                 required
+                rightElement={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-zinc-500 hover:text-zinc-300 focus:outline-none transition-colors"
+                    tabIndex={-1}
+                    aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                }
               />
 
               <Input
-                label="Confirm Password"
-                type="password"
-                placeholder="Repeat password"
+                label="Подтверждение пароля"
+                type={showConfirmPassword ? 'text' : 'password'}
+                placeholder="Повторите пароль"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 autoComplete="new-password"
                 required
+                error={passwordsMismatch ? 'Пароли не совпадают' : undefined}
+                helperText={passwordsMatch ? 'Пароли совпадают' : undefined}
+                rightElement={
+                  <div className="flex items-center gap-1.5">
+                    {passwordsMatch && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="text-zinc-500 hover:text-zinc-300 focus:outline-none transition-colors"
+                      tabIndex={-1}
+                      aria-label={showConfirmPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                }
               />
             </CardContent>
 
             <CardFooter className="flex flex-col gap-3">
               <Button type="submit" className="w-full" size="lg" isLoading={isLoading}>
-                <span>Create Profile</span>
+                <span>Создать аккаунт</span>
                 <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
 
               <p className="text-center text-xs text-zinc-400">
-                Already registered?{' '}
+                Уже зарегистрированы?{' '}
                 <Link
                   to="/login"
                   className="font-semibold text-amber-400 hover:text-amber-300 transition-colors"
                 >
-                  Sign in
+                  Войти
                 </Link>
               </p>
             </CardFooter>

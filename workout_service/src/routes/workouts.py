@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from workout_service.src.controllers.workout import WorkoutController
@@ -32,6 +32,11 @@ async def create_workout(
     resolved_event_type = x_event_type or event_type or "workout.created"
     if current_user_id is not None:
         workout_in.user_id = current_user_id
+    elif workout_in.user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="user_id is required either in request body or via Authorization header",
+        )
     workout = await controller.create_workout(workout_in, event_type=resolved_event_type)
     return WorkoutResponse.model_validate(workout)
 
