@@ -289,25 +289,38 @@ export const OneRepMaxProgressionChart: React.FC<OneRepMaxProgressionChartProps>
               );
             })}
 
-            {/* In-SVG Vector Tooltip with boundary safety */}
+            {/* In-SVG Vector Tooltip with pointer arrow & boundary safety */}
             {hoveredIndex !== null && data[hoveredIndex] && (() => {
               const pt = data[hoveredIndex];
               const px = getX(hoveredIndex);
               const py = getY(pt.oneRepMax);
-              const tooltipWidth = 155;
-              const tooltipHeight = 52;
+              const tooltipWidth = 210;
+              const tooltipHeight = 56;
 
               let tx = px - tooltipWidth / 2;
               if (tx < padding.left) tx = padding.left;
               if (tx + tooltipWidth > width - padding.right) tx = width - padding.right - tooltipWidth;
 
-              let ty = py - tooltipHeight - 12;
-              if (ty < padding.top) {
-                ty = py + 14;
-              }
+              const isAbove = py - tooltipHeight - 16 >= padding.top;
+              const ty = isAbove ? py - tooltipHeight - 14 : py + 16;
+              const arrowX = Math.max(tx + 14, Math.min(px, tx + tooltipWidth - 14));
+              const textCenterX = tx + tooltipWidth / 2;
 
               return (
                 <g pointerEvents="none" className="transition-opacity duration-150">
+                  {/* Vertical Crosshair Guideline */}
+                  <line
+                    x1={px}
+                    y1={padding.top}
+                    x2={px}
+                    y2={height - padding.bottom}
+                    stroke="#f59e0b"
+                    strokeWidth="1"
+                    strokeDasharray="2 3"
+                    opacity="0.35"
+                  />
+
+                  {/* Tooltip Background Card */}
                   <rect
                     x={tx}
                     y={ty}
@@ -317,11 +330,31 @@ export const OneRepMaxProgressionChart: React.FC<OneRepMaxProgressionChartProps>
                     fill="#09090b"
                     stroke="#f59e0b"
                     strokeWidth={1}
-                    opacity={0.95}
+                    opacity={0.97}
                   />
+
+                  {/* Pointer Arrow to target point */}
+                  {isAbove ? (
+                    <polygon
+                      points={`${arrowX - 7},${ty + tooltipHeight} ${arrowX + 7},${ty + tooltipHeight} ${arrowX},${ty + tooltipHeight + 7}`}
+                      fill="#09090b"
+                      stroke="#f59e0b"
+                      strokeWidth={1}
+                    />
+                  ) : (
+                    <polygon
+                      points={`${arrowX - 7},${ty} ${arrowX + 7},${ty} ${arrowX},${ty - 7}`}
+                      fill="#09090b"
+                      stroke="#f59e0b"
+                      strokeWidth={1}
+                    />
+                  )}
+
+                  {/* Line 1: Date */}
                   <text
-                    x={tx + 12}
-                    y={ty + 18}
+                    x={textCenterX}
+                    y={ty + 20}
+                    textAnchor="middle"
                     fill="#a1a1aa"
                     fontSize="11"
                     fontFamily="ui-sans-serif, system-ui, sans-serif"
@@ -329,11 +362,14 @@ export const OneRepMaxProgressionChart: React.FC<OneRepMaxProgressionChartProps>
                   >
                     {pt.date}
                   </text>
+
+                  {/* Line 2: 1RM and Set Breakdown */}
                   <text
-                    x={tx + 12}
-                    y={ty + 38}
-                    fill="#f59e0b"
-                    fontSize="13"
+                    x={textCenterX}
+                    y={ty + 40}
+                    textAnchor="middle"
+                    fill="#fbbf24"
+                    fontSize="12.5"
                     fontWeight="bold"
                     fontFamily="ui-monospace, monospace"
                     className="select-none"
