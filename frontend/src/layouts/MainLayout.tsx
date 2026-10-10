@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, Dumbbell, Trophy, User } from 'lucide-react';
+import { LayoutDashboard, Dumbbell, Trophy, TrendingUp, User } from 'lucide-react';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 import { cn } from '@/utils/cn';
@@ -21,53 +21,65 @@ export const MainLayout: React.FC = () => {
       </div>
 
       {/* Mobile Bottom Navigation Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur-md px-4 py-2 flex items-center justify-around">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur-md px-3 py-2 flex items-center justify-around">
         <NavLink
           to="/dashboard"
           className={({ isActive }) =>
             cn(
-              'flex flex-col items-center gap-1 text-xs font-semibold py-1 px-3 rounded-lg transition-colors',
+              'flex flex-col items-center gap-1 text-[11px] font-semibold py-1 px-2 rounded-lg transition-colors',
               isActive ? 'text-amber-400' : 'text-zinc-400 hover:text-zinc-200'
             )
           }
         >
-          <LayoutDashboard className="w-5 h-5" />
+          <LayoutDashboard className="w-4 h-4" />
           <span>Dashboard</span>
         </NavLink>
         <NavLink
           to="/workouts"
           className={({ isActive }) =>
             cn(
-              'flex flex-col items-center gap-1 text-xs font-semibold py-1 px-3 rounded-lg transition-colors',
+              'flex flex-col items-center gap-1 text-[11px] font-semibold py-1 px-2 rounded-lg transition-colors',
               isActive ? 'text-amber-400' : 'text-zinc-400 hover:text-zinc-200'
             )
           }
         >
-          <Dumbbell className="w-5 h-5" />
+          <Dumbbell className="w-4 h-4" />
           <span>Workouts</span>
         </NavLink>
         <NavLink
           to="/leaderboard"
           className={({ isActive }) =>
             cn(
-              'flex flex-col items-center gap-1 text-xs font-semibold py-1 px-3 rounded-lg transition-colors',
+              'flex flex-col items-center gap-1 text-[11px] font-semibold py-1 px-2 rounded-lg transition-colors',
               isActive ? 'text-amber-400' : 'text-zinc-400 hover:text-zinc-200'
             )
           }
         >
-          <Trophy className="w-5 h-5" />
+          <Trophy className="w-4 h-4" />
           <span>Leaderboard</span>
+        </NavLink>
+        <NavLink
+          to="/analytics"
+          className={({ isActive }) =>
+            cn(
+              'flex flex-col items-center gap-1 text-[11px] font-semibold py-1 px-2 rounded-lg transition-colors',
+              isActive ? 'text-amber-400' : 'text-zinc-400 hover:text-zinc-200'
+            )
+          }
+        >
+          <TrendingUp className="w-4 h-4" />
+          <span>Analytics</span>
         </NavLink>
         <NavLink
           to="/profile"
           className={({ isActive }) =>
             cn(
-              'flex flex-col items-center gap-1 text-xs font-semibold py-1 px-3 rounded-lg transition-colors',
+              'flex flex-col items-center gap-1 text-[11px] font-semibold py-1 px-2 rounded-lg transition-colors',
               isActive ? 'text-amber-400' : 'text-zinc-400 hover:text-zinc-200'
             )
           }
         >
-          <User className="w-5 h-5" />
+          <User className="w-4 h-4" />
           <span>Profile</span>
         </NavLink>
       </nav>

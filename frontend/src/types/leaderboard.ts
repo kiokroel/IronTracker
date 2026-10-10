@@ -1,3 +1,5 @@
+export type LeaderboardPeriod = 'all' | 'month' | 'week';
+
 export interface LeaderboardEntry {
   rank: number;
   user_id: string;
