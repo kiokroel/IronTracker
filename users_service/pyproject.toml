@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "irontracker-users-service"
+version = "0.1.0"
+description = "IronTracker Users Service (FastAPI + PostgreSQL + Stateless JWT Auth)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.28.0",
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.2.0",
+    "sqlalchemy[asyncio]>=2.0.28",
+    "asyncpg>=0.29.0",
+    "alembic>=1.13.0",
+    "bcrypt>=4.0.0",
+    "pyjwt>=2.8.0",
+    "python-dotenv>=1.0.1",
+]

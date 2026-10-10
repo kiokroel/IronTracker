@@ -17,6 +17,7 @@ router = APIRouter(prefix="/workouts", tags=["workouts"])
 async def create_workout(
     workout_in: WorkoutCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
+    current_user_id: Annotated[UUID | None, Depends(get_optional_user_id)] = None,
     event_type: Annotated[
         str | None,
         Query(description="Type of outbox event ('workout.created' or 'workout.completed')"),
@@ -29,6 +30,8 @@ async def create_workout(
     """Create a new workout record with validated JSONB metrics and transactional outbox."""
     controller = WorkoutController(db)
     resolved_event_type = x_event_type or event_type or "workout.created"
+    if current_user_id is not None:
+        workout_in.user_id = current_user_id
     workout = await controller.create_workout(workout_in, event_type=resolved_event_type)
     return WorkoutResponse.model_validate(workout)
 

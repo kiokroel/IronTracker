@@ -7,7 +7,10 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Path, Query, status
 from redis.exceptions import RedisError
 
-from leaderboard_service.src.dependencies import LeaderboardServiceDep
+from leaderboard_service.src.dependencies import (
+    CurrentUserIdDep,
+    LeaderboardServiceDep,
+)
 from leaderboard_service.src.schemas.leaderboard import (
     LeaderboardResponse,
     UserRankResponse,
@@ -59,6 +62,35 @@ async def get_tonnage_leaderboard(
         return await service.get_tonnage_leaderboard(limit=limit, offset=offset)
     except (RedisError, ConnectionError, TimeoutError, OSError) as exc:
         logger.error("Redis failure during get_tonnage_leaderboard: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Redis service unavailable",
+        ) from exc
+
+
+@router.get(
+    "/me",
+    response_model=UserRankResponse,
+    summary="Get current authenticated athlete tonnage rank",
+    description=(
+        "Retrieve ranking position and total tonnage score for "
+        "the authenticated user from JWT token."
+    ),
+    operation_id="get_my_tonnage_rank",
+)
+async def get_my_tonnage_rank(
+    current_user_id: CurrentUserIdDep,
+    service: LeaderboardServiceDep,
+) -> UserRankResponse:
+    """Return ranking position and tonnage score for the authenticated athlete."""
+    try:
+        return await service.get_user_tonnage_rank(user_id=current_user_id)
+    except (RedisError, ConnectionError, TimeoutError, OSError) as exc:
+        logger.error(
+            "Redis failure during get_my_tonnage_rank for user %s: %s",
+            current_user_id,
+            exc,
+        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Redis service unavailable",
