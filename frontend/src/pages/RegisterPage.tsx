@@ -99,7 +99,7 @@ export const RegisterPage: React.FC = () => {
               <Input
                 label="Email"
                 type="email"
-                placeholder="athlete@irontracker.io"
+                placeholder="athlete@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"

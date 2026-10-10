@@ -22,7 +22,7 @@ class UserRegister(BaseModel):
 
     email: EmailType = Field(
         description="Unique athlete email address",
-        examples=["athlete@irontracker.io"],
+        examples=["athlete@example.com"],
     )
     username: str = Field(
         min_length=2,
@@ -45,7 +45,7 @@ class UserLogin(BaseModel):
 
     email: EmailType = Field(
         description="Registered athlete email address",
-        examples=["athlete@irontracker.io"],
+        examples=["athlete@example.com"],
     )
     password: str = Field(
         min_length=1,

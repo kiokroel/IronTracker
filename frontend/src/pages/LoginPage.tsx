@@ -35,11 +35,6 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const fillDemo = () => {
-    setEmail('athlete@irontracker.io');
-    setPassword('IronLifter123!');
-    setFormError(null);
-  };
 
   const displayedError = formError || authError;
 
@@ -76,7 +71,7 @@ export const LoginPage: React.FC = () => {
               <Input
                 label="Email"
                 type="email"
-                placeholder="athlete@irontracker.io"
+                placeholder="athlete@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
@@ -103,16 +98,6 @@ export const LoginPage: React.FC = () => {
                   </button>
                 }
               />
-
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={fillDemo}
-                  className="text-xs text-amber-400 hover:text-amber-300 underline underline-offset-2 transition-colors"
-                >
-                  Заполнить демо-данные
-                </button>
-              </div>
             </CardContent>
 
             <CardFooter className="flex flex-col gap-3">
