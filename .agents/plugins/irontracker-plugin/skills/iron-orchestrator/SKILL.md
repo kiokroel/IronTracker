@@ -13,9 +13,10 @@ description: "Главный оркестратор полного цикла р
 
 | Субагент (TypeName) | Роль | Зона ответственности | Основной артефакт |
 |:---|:---|:---|:---|
-| `iron-developer` | Ведущий разработчик | Код сервисов, моделей, роутеров, Outbox, Pydantic DTO, Secure Coding | `_workspace/01_developer_report.md` |
-| `iron-tester` | QA & Инженер безопасности | Unit/интеграционные тесты, pytest, ruff, mypy, bandit, pip-audit, IDOR | `_workspace/02_tester_report.md` |
-| `iron-critic` | Архитектурный цензор и аудитор ИБ | Аудит 01-architecture, 02-code-style, 03-testing, аудит бэкдоров/секретов | `_workspace/03_critic_report.md` |
+| `iron-developer` | Ведущий бэкенд-разработчик | Код микросервисов, моделей, роутеров, Outbox, Pydantic DTO, Secure Coding | `_workspace/01_developer_report.md` |
+| `iron-frontend` | Ведущий фронтенд-разработчик | React 18+, TypeScript (strict), Tailwind, Vite, Zustand, UI компоненты, формы, 1RM графики | `_workspace/01_frontend_report.md` |
+| `iron-tester` | QA & Инженер безопасности | Unit/интеграционные тесты, pytest, ruff, mypy, bandit, pip-audit, npm lint/audit, IDOR | `_workspace/02_tester_report.md` |
+| `iron-critic` | Архитектурный цензор и аудитор ИБ | Аудит 01-architecture, 02-code-style, 03-testing, аудит бэкдоров/секретов/XSS | `_workspace/03_critic_report.md` |
 
 ---
 
@@ -33,15 +34,18 @@ description: "Главный оркестратор полного цикла р
 ### Phase 1: Подготовка и инициализация
 
 1. Проанализируй входную задачу:
-   - Требуется ли создание нового эндпоинта (активируй навыки `endpoint-developer`)?
+   - Относится ли задача к клиентской части (Frontend / UI / React)? Активируй навык `frontend-developer` и назначь разработчиком `iron-frontend`.
+   - Требуется ли создание нового эндпоинта бэкенда (активируй навыки `endpoint-developer`)?
    - Требуется ли изменение схемы БД (активируй навыки `db-migrator`)?
    - Затронут ли Workout Service (критично наличие Transactional Outbox)?
 2. Создай директорию `_workspace/` и поддиректорию `_workspace/00_input/`.
 3. Сохрани структурированное описание задачи в `_workspace/00_input/task.md`.
 
-### Phase 2: Фаза Разработчика (`iron-developer`)
+### Phase 2: Фаза Разработчика (`iron-developer` или `iron-frontend`)
 
-Запусти субагента-разработчика через `invoke_subagent`:
+В зависимости от типа задачи запусти соответствующего разработчика через `invoke_subagent`:
+
+#### Вариант А: Задача бэкенда (`iron-developer`)
 - **TypeName**: `iron-developer`
 - **Role**: `Lead Backend Developer`
 - **Prompt**:
@@ -56,6 +60,23 @@ description: "Главный оркестратор полного цикла р
   - Только асинхронный I/O (asyncpg, motor, redis.asyncio, aiokafka, aio-pika).
   - Стандарты безопасности: запрет eval/exec/pickle/subprocess, отсутствие захардкоженных секретов (только .env/pydantic-settings), защита от инъекций и IDOR.
   Зафиксируй результаты своей работы в файле _workspace/01_developer_report.md.
+  ```
+
+#### Вариант Б: Задача фронтенда (`iron-frontend`)
+- **TypeName**: `iron-frontend`
+- **Role**: `Lead Frontend Engineer`
+- **Prompt**:
+  ```
+  Изучи задачу в _workspace/00_input/task.md.
+  Если в _workspace/03_critic_report.md есть замечания предыдущей итерации, устрани их в первую очередь.
+  Реализуй изменения клиентской части строго по правилам IronTracker (навык frontend-developer):
+  - React 18+, TypeScript (strict mode, без any), Vite, Tailwind CSS.
+  - Модульная архитектура frontend/src/ (api/, components/, layouts/, pages/, store/, types/).
+  - Синхронизация типов с Pydantic v2 DTO бэкенда (Discriminated Unions для метрик).
+  - Zustand сторы (auth persist в localStorage, workouts, leaderboard).
+  - Безопасность: Bearer JWT авторизация, защита от XSS, скрытие элементов чужих тренировок (защита от IDOR на клиенте).
+  - Multi-stage Dockerfile (Node.js builder -> Caddy/Nginx static runner).
+  Зафиксируй результаты своей работы в файле _workspace/01_frontend_report.md.
   ```
 Ожидай завершения работы разработчика.
 
