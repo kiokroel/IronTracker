@@ -14,6 +14,7 @@ import {
 import { Workout, isStrengthMetrics, isCardioMetrics } from '@/types/workout';
 import { useWorkoutStore } from '@/store/useWorkoutStore';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useLocaleStore } from '@/store/useLocaleStore';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Loader } from '@/components/ui/Loader';
@@ -25,6 +26,7 @@ import {
 } from '@/components/workouts';
 import { calculateOneRepMax, calculateSetTonnage, formatWeight } from '@/utils/fitness';
 import { getWorkoutDateKey, formatDateGroupHeading } from '@/utils/date';
+import { formatExerciseName } from '@/utils/exercise';
 
 export const WorkoutsPage: React.FC = () => {
   const {
@@ -45,6 +47,7 @@ export const WorkoutsPage: React.FC = () => {
   } = useWorkoutStore();
 
   const currentUser = useAuthStore((state) => state.user);
+  const { t, locale } = useLocaleStore();
 
   // Modal states
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -153,7 +156,7 @@ export const WorkoutsPage: React.FC = () => {
         const e1rm = calculateOneRepMax(w.metrics.weight, w.metrics.reps);
         if (e1rm > heaviest1RM) {
           heaviest1RM = e1rm;
-          heaviestExercise = (w.type || w.metrics.exercise_type).replace(/_/g, ' ');
+          heaviestExercise = formatExerciseName(w.type || w.metrics.exercise_type, t);
         }
       } else if (isCardioMetrics(w.metrics)) {
         totalCardioKm += w.metrics.distance_km;
@@ -167,7 +170,7 @@ export const WorkoutsPage: React.FC = () => {
       heaviestExercise,
       totalCardioKm: Math.round(totalCardioKm * 10) / 10,
     };
-  }, [workouts, currentUser]);
+  }, [workouts, currentUser, t]);
 
   // Group workouts by Date (sorted chronological descending)
   const groupedWorkouts = useMemo(() => {
@@ -197,12 +200,17 @@ export const WorkoutsPage: React.FC = () => {
 
       return {
         dateKey,
-        heading: formatDateGroupHeading(dateKey),
+        heading: formatDateGroupHeading(dateKey, {
+          locale: locale === 'ru' ? 'ru-RU' : 'en-US',
+          todayText: t('common.today'),
+          yesterdayText: t('common.yesterday'),
+          undatedText: t('common.undatedSessions'),
+        }),
         items,
         dayTonnage,
       };
     });
-  }, [filteredWorkouts]);
+  }, [filteredWorkouts, locale, t]);
 
   // Handlers
   const handleOpenCreateModal = () => {
@@ -267,14 +275,14 @@ export const WorkoutsPage: React.FC = () => {
       {/* Header bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-white tracking-tight">Workouts Journal</h1>
+          <h1 className="text-2xl font-black text-white tracking-tight">{t('workouts.title')}</h1>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Log telemetry, build multi-set volume, and analyze personal performance records
+            {t('workouts.subtitle')}
           </p>
         </div>
         <Button onClick={handleOpenCreateModal} variant="primary" size="md" className="gap-2 shrink-0">
           <Plus className="w-4 h-4" />
-          <span>Log Workout</span>
+          <span>{t('workouts.logWorkout')}</span>
         </Button>
       </div>
 
@@ -283,7 +291,7 @@ export const WorkoutsPage: React.FC = () => {
         <div className="rounded-xl bg-zinc-900/80 border border-zinc-800/80 p-3.5">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-              Total Sessions
+              {t('workouts.totalSessions')}
             </span>
             <Dumbbell className="w-4 h-4 text-zinc-500" />
           </div>
@@ -295,7 +303,7 @@ export const WorkoutsPage: React.FC = () => {
         <div className="rounded-xl bg-zinc-900/80 border border-zinc-800/80 p-3.5">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-              Total Tonnage
+              {t('workouts.tonnage')}
             </span>
             <Flame className="w-4 h-4 text-red-500" />
           </div>
@@ -307,12 +315,12 @@ export const WorkoutsPage: React.FC = () => {
         <div className="rounded-xl bg-zinc-900/80 border border-zinc-800/80 p-3.5">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-              Heaviest 1RM
+              {t('workouts.heaviest1RM')}
             </span>
             <Zap className="w-4 h-4 text-amber-500" />
           </div>
           <div className="mt-2 text-xl font-black text-amber-400 font-mono">
-            {stats.heaviest1RM > 0 ? `${stats.heaviest1RM} kg` : '—'}
+            {stats.heaviest1RM > 0 ? `${stats.heaviest1RM} ${t('common.kg')}` : '—'}
           </div>
           {stats.heaviestExercise && (
             <span className="text-[10px] text-zinc-500 capitalize truncate block">
@@ -324,12 +332,12 @@ export const WorkoutsPage: React.FC = () => {
         <div className="rounded-xl bg-zinc-900/80 border border-zinc-800/80 p-3.5">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-              Cardio Distance
+              {t('workouts.cardioDistance')}
             </span>
             <Activity className="w-4 h-4 text-cyan-400" />
           </div>
           <div className="mt-2 text-xl font-black text-cyan-400 font-mono">
-            {stats.totalCardioKm > 0 ? `${stats.totalCardioKm} km` : '—'}
+            {stats.totalCardioKm > 0 ? `${stats.totalCardioKm} ${t('common.km')}` : '—'}
           </div>
         </div>
       </div>
@@ -344,25 +352,25 @@ export const WorkoutsPage: React.FC = () => {
 
       {/* Main Content Area */}
       {isLoading ? (
-        <Loader text="Loading workout journal records..." />
+        <Loader text={t('common.loading')} />
       ) : filteredWorkouts.length === 0 ? (
         <Card className="border-dashed border-zinc-800 bg-zinc-900/40 p-12 text-center">
           <Dumbbell className="mx-auto h-12 w-12 text-zinc-600 mb-3" />
-          <h3 className="text-base font-bold text-white">No workouts found</h3>
+          <h3 className="text-base font-bold text-white">{t('workouts.noWorkouts')}</h3>
           <p className="text-xs text-zinc-400 max-w-sm mx-auto mt-1 mb-4 leading-relaxed">
             {workouts.length === 0
-              ? 'Your workout diary is currently empty. Start logging sets to begin tracking progression and tonnage!'
-              : 'No workouts matched your active filter criteria. Try adjusting your search term or date range.'}
+              ? t('workouts.noWorkoutsDesc')
+              : t('workouts.noWorkoutsDesc')}
           </p>
           <div className="flex items-center justify-center gap-3">
             {workouts.length > 0 && (
               <Button onClick={resetFilters} variant="secondary" size="sm">
-                Reset Filters
+                {t('workouts.resetFilters')}
               </Button>
             )}
             <Button onClick={handleOpenCreateModal} variant="primary" size="sm">
               <Plus className="w-4 h-4 mr-1" />
-              <span>Record Workout</span>
+              <span>{t('workouts.logWorkout')}</span>
             </Button>
           </div>
         </Card>
@@ -377,7 +385,8 @@ export const WorkoutsPage: React.FC = () => {
                     {group.heading}
                   </h2>
                   <span className="px-2 py-0.5 rounded-full bg-zinc-800 text-[10px] font-semibold text-zinc-400">
-                    {group.items.length} {group.items.length === 1 ? 'session' : 'sessions'}
+                    {group.items.length}{' '}
+                    {group.items.length === 1 ? t('workouts.session') : t('workouts.sessions')}
                   </span>
                 </div>
 
@@ -406,7 +415,7 @@ export const WorkoutsPage: React.FC = () => {
           {/* Pagination Controls */}
           <div className="flex items-center justify-between pt-4 border-t border-zinc-800/80 text-xs text-zinc-400">
             <div>
-              Showing <span className="text-white font-semibold">{filteredWorkouts.length}</span> records
+              {t('workouts.showingRecords', { count: filteredWorkouts.length })}
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -421,7 +430,7 @@ export const WorkoutsPage: React.FC = () => {
                 className="gap-1 px-3 py-1.5"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
-                Previous
+                {t('workouts.previous')}
               </Button>
               <Button
                 variant="secondary"
@@ -434,7 +443,7 @@ export const WorkoutsPage: React.FC = () => {
                 }}
                 className="gap-1 px-3 py-1.5"
               >
-                Next
+                {t('workouts.next')}
                 <ChevronRight className="w-3.5 h-3.5" />
               </Button>
             </div>

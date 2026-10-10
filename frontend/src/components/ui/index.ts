@@ -4,3 +4,4 @@ export * from './Card';
 export * from './Badge';
 export * from './Loader';
 export * from './Modal';
+export * from './LanguageSwitcher';

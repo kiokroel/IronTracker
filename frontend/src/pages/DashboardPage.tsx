@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Dumbbell, Trophy, Flame, TrendingUp, Plus, ArrowUpRight, Award } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useLocaleStore } from '@/store/useLocaleStore';
 import { workoutsApi } from '@/api/workouts';
 import { leaderboardApi } from '@/api/leaderboard';
 import { Workout } from '@/types/workout';
@@ -11,9 +12,12 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Loader } from '@/components/ui/Loader';
 import { calculateOneRepMax, formatWeight } from '@/utils/fitness';
+import { formatWorkoutDate } from '@/utils/date';
+import { formatExerciseName } from '@/utils/exercise';
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuthStore();
+  const { t, locale } = useLocaleStore();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [userRank, setUserRank] = useState<UserRankResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -72,7 +76,7 @@ export const DashboardPage: React.FC = () => {
   });
 
   if (isLoading) {
-    return <Loader fullScreen text="Loading athlete dashboard..." />;
+    return <Loader fullScreen text={t('common.loading')} />;
   }
 
   return (
@@ -82,15 +86,15 @@ export const DashboardPage: React.FC = () => {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold tracking-widest text-amber-500 uppercase">
-              Athlete Command Center
+              {t('dashboard.title')}
             </span>
-            <Badge variant="accent" size="sm">Active</Badge>
+            <Badge variant="accent" size="sm">{t('dashboard.active')}</Badge>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-white">
-            Welcome back, <span className="text-amber-500">{user?.username}</span>!
+            {t('common.appName')}, <span className="text-amber-500">{user?.username}</span>!
           </h1>
           <p className="text-sm text-zinc-400">
-            Track metrics, analyze volume, and conquer the global leaderboard.
+            {t('dashboard.subtitle')}
           </p>
         </div>
 
@@ -98,13 +102,13 @@ export const DashboardPage: React.FC = () => {
           <Link to="/workouts">
             <Button variant="primary" size="md">
               <Plus className="w-4 h-4 mr-1.5" />
-              <span>Log Workout</span>
+              <span>{t('dashboard.quickLog')}</span>
             </Button>
           </Link>
           <Link to="/leaderboard">
             <Button variant="secondary" size="md">
               <Trophy className="w-4 h-4 mr-1.5 text-amber-500" />
-              <span>Leaderboard</span>
+              <span>{t('nav.leaderboard')}</span>
             </Button>
           </Link>
         </div>
@@ -115,61 +119,69 @@ export const DashboardPage: React.FC = () => {
         {/* Total Workouts */}
         <Card className="border-zinc-800 bg-zinc-900/80">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-bold uppercase text-zinc-400">Total Workouts</CardTitle>
+            <CardTitle className="text-xs font-bold uppercase text-zinc-400">
+              {t('dashboard.statTotalWorkouts')}
+            </CardTitle>
             <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
               <Dumbbell className="w-4 h-4" />
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-black text-white">{totalWorkouts}</div>
-            <p className="text-xs text-zinc-400 mt-1">Logged sessions</p>
+            <p className="text-xs text-zinc-400 mt-1">{t('workouts.sessions')}</p>
           </CardContent>
         </Card>
 
         {/* Total Tonnage */}
         <Card className="border-zinc-800 bg-zinc-900/80">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-bold uppercase text-zinc-400">Total Tonnage</CardTitle>
+            <CardTitle className="text-xs font-bold uppercase text-zinc-400">
+              {t('dashboard.statTotalVolume')}
+            </CardTitle>
             <div className="p-2 rounded-lg bg-red-500/10 text-red-400">
               <Flame className="w-4 h-4" />
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-black text-white">{formatWeight(totalTonnage)}</div>
-            <p className="text-xs text-zinc-400 mt-1">Accumulated iron lifted</p>
+            <p className="text-xs text-zinc-400 mt-1">{t('workouts.tonnage')}</p>
           </CardContent>
         </Card>
 
         {/* Global Rank */}
         <Card className="border-zinc-800 bg-zinc-900/80">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-bold uppercase text-zinc-400">Global Rank</CardTitle>
+            <CardTitle className="text-xs font-bold uppercase text-zinc-400">
+              {t('dashboard.statCurrentRank')}
+            </CardTitle>
             <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
               <Trophy className="w-4 h-4" />
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-black text-white">
-              {userRank?.rank ? `#${userRank.rank}` : 'Unranked'}
+              {userRank?.rank ? `#${userRank.rank}` : t('leaderboard.unranked')}
             </div>
-            <p className="text-xs text-zinc-400 mt-1">In tonnage standings</p>
+            <p className="text-xs text-zinc-400 mt-1">{t('leaderboard.title')}</p>
           </CardContent>
         </Card>
 
         {/* Max Estimated 1RM */}
         <Card className="border-zinc-800 bg-zinc-900/80">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-bold uppercase text-zinc-400">Peak 1RM</CardTitle>
+            <CardTitle className="text-xs font-bold uppercase text-zinc-400">
+              {t('analytics.best1RM')}
+            </CardTitle>
             <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
               <TrendingUp className="w-4 h-4" />
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-black text-white">
-              {best1RM > 0 ? `${best1RM} kg` : 'N/A'}
+              {best1RM > 0 ? `${best1RM} ${t('common.kg')}` : t('common.na')}
             </div>
             <p className="text-xs text-zinc-400 mt-1 capitalize truncate">
-              {bestExercise.replace('_', ' ')}
+              {formatExerciseName(bestExercise, t)}
             </p>
           </CardContent>
         </Card>
@@ -179,14 +191,14 @@ export const DashboardPage: React.FC = () => {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-white">Recent Workouts</h2>
-            <p className="text-xs text-zinc-400">Telemetry logs from your latest sessions</p>
+            <h2 className="text-lg font-bold text-white">{t('dashboard.recentWorkouts')}</h2>
+            <p className="text-xs text-zinc-400">{t('dashboard.subtitle')}</p>
           </div>
           <Link
             to="/workouts"
             className="flex items-center gap-1 text-xs font-semibold text-amber-400 hover:text-amber-300 transition-colors"
           >
-            <span>View all</span>
+            <span>{t('dashboard.viewAll')}</span>
             <ArrowUpRight className="w-4 h-4" />
           </Link>
         </div>
@@ -196,14 +208,14 @@ export const DashboardPage: React.FC = () => {
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-800 text-zinc-400 mb-3">
               <Award className="h-6 w-6" />
             </div>
-            <h3 className="text-base font-bold text-white">No workouts recorded yet</h3>
+            <h3 className="text-base font-bold text-white">{t('workouts.noWorkouts')}</h3>
             <p className="text-sm text-zinc-400 max-w-sm mx-auto mt-1 mb-4">
-              Hit the iron and record your first workout session to generate telemetry metrics.
+              {t('workouts.noWorkoutsDesc')}
             </p>
             <Link to="/workouts">
               <Button variant="primary" size="md">
                 <Plus className="w-4 h-4 mr-1.5" />
-                <span>Log First Workout</span>
+                <span>{t('workouts.logWorkout')}</span>
               </Button>
             </Link>
           </Card>
@@ -214,35 +226,35 @@ export const DashboardPage: React.FC = () => {
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <Badge variant="accent" size="sm">
-                      {workout.type || workout.metrics.exercise_type}
+                      {formatExerciseName(workout.type || workout.metrics.exercise_type, t)}
                     </Badge>
                     <span className="text-[11px] text-zinc-500 font-mono">
-                      {new Date(workout.date || workout.created_at).toLocaleDateString()}
+                      {formatWorkoutDate(workout.date || workout.created_at, locale === 'ru' ? 'ru-RU' : 'en-US')}
                     </span>
                   </div>
                   <CardTitle className="text-base capitalize mt-2">
-                    {(workout.type || workout.metrics.exercise_type).replace('_', ' ')}
+                    {formatExerciseName(workout.type || workout.metrics.exercise_type, t)}
                   </CardTitle>
                   <CardDescription className="text-xs">
                     {'weight' in workout.metrics && 'sets' in workout.metrics && 'reps' in workout.metrics ? (
                       <>
-                        {workout.metrics.weight} kg × {workout.metrics.sets} sets × {workout.metrics.reps} reps
+                        {workout.metrics.weight} {t('common.kg')} × {workout.metrics.sets} {t('common.sets')} × {workout.metrics.reps} {t('common.reps')}
                       </>
                     ) : 'distance_km' in workout.metrics ? (
                       <>
-                        {workout.metrics.distance_km} km in {workout.metrics.duration_minutes} min
+                        {workout.metrics.distance_km} {t('common.km')} / {workout.metrics.duration_minutes} {t('common.min')}
                       </>
                     ) : (
-                      'Recorded session'
+                      t('dashboard.recordedSession')
                     )}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-0">
                   {'weight' in workout.metrics && 'reps' in workout.metrics && (
                     <div className="flex items-center justify-between text-xs pt-2 border-t border-zinc-800/80 text-zinc-400">
-                      <span>Est. 1RM</span>
+                      <span>{t('analytics.estimatedMax')}</span>
                       <span className="font-bold text-amber-400">
-                        {calculateOneRepMax(workout.metrics.weight, workout.metrics.reps)} kg
+                        {calculateOneRepMax(workout.metrics.weight, workout.metrics.reps)} {t('common.kg')}
                       </span>
                     </div>
                   )}

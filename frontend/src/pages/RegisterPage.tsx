@@ -2,13 +2,16 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Dumbbell, AlertCircle, ArrowRight, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useLocaleStore } from '@/store/useLocaleStore';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/Card';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const { register, isLoading, error: authError } = useAuthStore();
+  const { t } = useLocaleStore();
 
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -26,22 +29,22 @@ export const RegisterPage: React.FC = () => {
     setFormError(null);
 
     if (!email.trim() || !username.trim() || !password) {
-      setFormError('Все поля обязательны для заполнения.');
+      setFormError(t('auth.allFieldsRequired'));
       return;
     }
 
     if (username.trim().length < 2) {
-      setFormError('Имя атлета должно содержать не менее 2 символов.');
+      setFormError(t('auth.usernameMinLength'));
       return;
     }
 
     if (password.length < 6) {
-      setFormError('Пароль должен содержать не менее 6 символов.');
+      setFormError(t('auth.passwordMinLength'));
       return;
     }
 
     if (password !== confirmPassword) {
-      setFormError('Пароли не совпадают.');
+      setFormError(t('auth.passwordsMismatch'));
       return;
     }
 
@@ -60,7 +63,12 @@ export const RegisterPage: React.FC = () => {
   const displayedError = formError || authError;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4 sm:p-6">
+    <div className="relative min-h-screen flex items-center justify-center bg-zinc-950 p-4 sm:p-6">
+      {/* Top right language switch */}
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+        <LanguageSwitcher variant="pill" />
+      </div>
+
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-2">
           <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-500 mb-2">
@@ -69,13 +77,13 @@ export const RegisterPage: React.FC = () => {
           <h1 className="text-2xl sm:text-3xl font-black tracking-wider text-white">
             JOIN <span className="text-amber-500">IRONTRACKER</span>
           </h1>
-          <p className="text-sm text-zinc-400">Регистрация профиля спортсмена</p>
+          <p className="text-sm text-zinc-400">{t('auth.registerHeader')}</p>
         </div>
 
         <Card className="border-zinc-800 bg-zinc-900/90 shadow-2xl">
           <CardHeader>
-            <CardTitle>Создание профиля атлета</CardTitle>
-            <CardDescription>Заполните форму для фиксации тренировочных показателей</CardDescription>
+            <CardTitle>{t('auth.registerTitle')}</CardTitle>
+            <CardDescription>{t('auth.registerDesc')}</CardDescription>
           </CardHeader>
 
           <form onSubmit={handleSubmit}>
@@ -88,7 +96,7 @@ export const RegisterPage: React.FC = () => {
               )}
 
               <Input
-                label="Имя атлета (Username)"
+                label={t('auth.username')}
                 placeholder="IronLifter"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -97,7 +105,7 @@ export const RegisterPage: React.FC = () => {
               />
 
               <Input
-                label="Email"
+                label={t('auth.email')}
                 type="email"
                 placeholder="athlete@example.com"
                 value={email}
@@ -107,7 +115,7 @@ export const RegisterPage: React.FC = () => {
               />
 
               <Input
-                label="Пароль"
+                label={t('auth.password')}
                 type={showPassword ? 'text' : 'password'}
                 placeholder="Минимум 6 символов"
                 value={password}
@@ -120,7 +128,7 @@ export const RegisterPage: React.FC = () => {
                     onClick={() => setShowPassword(!showPassword)}
                     className="text-zinc-500 hover:text-zinc-300 focus:outline-none transition-colors"
                     tabIndex={-1}
-                    aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                    aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -128,15 +136,15 @@ export const RegisterPage: React.FC = () => {
               />
 
               <Input
-                label="Подтверждение пароля"
+                label={t('auth.confirmPassword')}
                 type={showConfirmPassword ? 'text' : 'password'}
                 placeholder="Повторите пароль"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 autoComplete="new-password"
                 required
-                error={passwordsMismatch ? 'Пароли не совпадают' : undefined}
-                helperText={passwordsMatch ? 'Пароли совпадают' : undefined}
+                error={passwordsMismatch ? t('auth.passwordsMismatch') : undefined}
+                helperText={passwordsMatch ? t('auth.passwordsMatch') : undefined}
                 rightElement={
                   <div className="flex items-center gap-1.5">
                     {passwordsMatch && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
@@ -145,7 +153,7 @@ export const RegisterPage: React.FC = () => {
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       className="text-zinc-500 hover:text-zinc-300 focus:outline-none transition-colors"
                       tabIndex={-1}
-                      aria-label={showConfirmPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                      aria-label={showConfirmPassword ? t('auth.hidePassword') : t('auth.showPassword')}
                     >
                       {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -156,17 +164,17 @@ export const RegisterPage: React.FC = () => {
 
             <CardFooter className="flex flex-col gap-3">
               <Button type="submit" className="w-full" size="lg" isLoading={isLoading}>
-                <span>Создать аккаунт</span>
+                <span>{t('auth.registerButton')}</span>
                 <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
 
               <p className="text-center text-xs text-zinc-400">
-                Уже зарегистрированы?{' '}
+                {t('auth.alreadyRegistered')}{' '}
                 <Link
                   to="/login"
                   className="font-semibold text-amber-400 hover:text-amber-300 transition-colors"
                 >
-                  Войти
+                  {t('auth.signInLink')}
                 </Link>
               </p>
             </CardFooter>

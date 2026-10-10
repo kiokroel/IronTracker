@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/Input';
 import { calculateOneRepMax, formatWeight } from '@/utils/fitness';
 import { toLocalDatetimeInputValue, toUtcIsoString } from '@/utils/date';
 import { useWorkoutStore } from '@/store/useWorkoutStore';
+import { useLocaleStore } from '@/store/useLocaleStore';
 
 export interface WorkoutFormModalProps {
   isOpen: boolean;
@@ -32,6 +33,7 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
   onSuccess,
 }) => {
   const { createWorkout, updateWorkout, isSubmitting } = useWorkoutStore();
+  const { t } = useLocaleStore();
 
   const isEditMode = Boolean(workoutToEdit);
 
@@ -228,17 +230,17 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
       if (movement !== 'cardio') {
         // Validate sets
         if (sets.length === 0) {
-          throw new Error('Please add at least one set to the workout.');
+          throw new Error(t('workouts.validationAddSet'));
         }
         for (const s of sets) {
           if (s.weight <= 0) {
-            throw new Error(`Set #${s.setNumber}: Weight must be greater than 0 kg.`);
+            throw new Error(t('workouts.validationWeight', { set: s.setNumber }));
           }
           if (s.reps <= 0) {
-            throw new Error(`Set #${s.setNumber}: Repetitions must be greater than 0.`);
+            throw new Error(t('workouts.validationReps', { set: s.setNumber }));
           }
           if (s.rpe !== undefined && (s.rpe < 1 || s.rpe > 10)) {
-            throw new Error(`Set #${s.setNumber}: RPE must be between 1 and 10.`);
+            throw new Error(t('workouts.validationRpe', { set: s.setNumber }));
           }
         }
 
@@ -294,10 +296,10 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
         const dist = parseFloat(distanceKm);
         const dur = parseFloat(durationMinutes);
         if (isNaN(dist) || dist <= 0) {
-          throw new Error('Distance must be greater than 0 km.');
+          throw new Error(t('workouts.validationDistance'));
         }
         if (isNaN(dur) || dur <= 0) {
-          throw new Error('Duration must be greater than 0 minutes.');
+          throw new Error(t('workouts.validationDuration'));
         }
 
         workoutType = 'cardio';
@@ -335,7 +337,7 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
       if (err instanceof Error) {
         setFormError(err.message);
       } else {
-        setFormError('Failed to process workout session.');
+        setFormError(t('workouts.processError'));
       }
     }
   };
@@ -344,11 +346,11 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={isEditMode ? 'Edit Workout Record' : 'Log Workout Session'}
+      title={isEditMode ? t('workouts.editWorkout') : t('workouts.newWorkout')}
       description={
         isEditMode
-          ? 'Modify your telemetry, sets, and metrics'
-          : 'Configure sets, weight, reps, and track your tonnage in real-time'
+          ? t('workouts.modifyTelemetryDesc')
+          : t('workouts.configureSetsDesc')
       }
       className="max-w-2xl"
     >
@@ -363,24 +365,24 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300">
-              Activity Movement
+              {t('workouts.activityMovement')}
             </label>
             <select
               value={movement}
               onChange={(e) => setMovement(e.target.value as MovementType)}
               className="w-full px-3.5 py-2.5 rounded-lg text-sm bg-zinc-900 border border-zinc-800 text-zinc-100 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none transition-colors"
             >
-              <option value="bench_press">Bench Press</option>
-              <option value="squats">Squats</option>
-              <option value="deadlift">Deadlift</option>
-              <option value="overhead_press">Overhead Press</option>
-              <option value="cardio">Cardio / Treadmill</option>
+              <option value="bench_press">{t('workouts.bench_press')}</option>
+              <option value="squats">{t('workouts.squats')}</option>
+              <option value="deadlift">{t('workouts.deadlift')}</option>
+              <option value="overhead_press">{t('workouts.overhead_press')}</option>
+              <option value="cardio">{t('workouts.cardioTreadmill')}</option>
             </select>
           </div>
 
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300">
-              Workout Timestamp
+              {t('workouts.workoutTimestamp')}
             </label>
             <div className="relative">
               <input
@@ -401,7 +403,7 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
             <div className="rounded-xl bg-zinc-950/80 border border-zinc-800 p-3.5 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
               <div>
                 <span className="text-[11px] text-zinc-500 uppercase tracking-wider block">
-                  Total Tonnage
+                  {t('workouts.tonnage')}
                 </span>
                 <span className="text-base font-bold text-red-400 flex items-center justify-center gap-1 font-mono mt-0.5">
                   <Flame className="w-4 h-4 text-red-500" />
@@ -410,16 +412,16 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
               </div>
               <div>
                 <span className="text-[11px] text-zinc-500 uppercase tracking-wider block">
-                  Heaviest 1RM
+                  {t('workouts.heaviest1RM')}
                 </span>
                 <span className="text-base font-bold text-amber-400 flex items-center justify-center gap-1 font-mono mt-0.5">
                   <Zap className="w-4 h-4 text-amber-500" />
-                  {estimated1RM} kg
+                  {estimated1RM} {t('common.kg')}
                 </span>
               </div>
               <div>
                 <span className="text-[11px] text-zinc-500 uppercase tracking-wider block">
-                  Total Sets
+                  {t('workouts.totalSets')}
                 </span>
                 <span className="text-base font-bold text-white font-mono mt-0.5 block">
                   {sets.length}
@@ -427,7 +429,7 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
               </div>
               <div>
                 <span className="text-[11px] text-zinc-500 uppercase tracking-wider block">
-                  Total Reps
+                  {t('workouts.totalReps')}
                 </span>
                 <span className="text-base font-bold text-white font-mono mt-0.5 block">
                   {totalReps}
@@ -439,7 +441,7 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
-                  Sets Constructor
+                  {t('workouts.setsConstructor')}
                 </span>
                 <Button
                   type="button"
@@ -449,18 +451,18 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
                   className="text-xs py-1 h-8"
                 >
                   <Plus className="w-3.5 h-3.5 mr-1 text-amber-400" />
-                  Add Set
+                  {t('workouts.addSet')}
                 </Button>
               </div>
 
               <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 divide-y divide-zinc-800/60 overflow-hidden">
                 {/* Header row */}
                 <div className="grid grid-cols-12 gap-2 px-3 py-2 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider bg-zinc-900/60">
-                  <div className="col-span-2 text-center">Set</div>
-                  <div className="col-span-3">Weight (kg)</div>
-                  <div className="col-span-3">Reps</div>
-                  <div className="col-span-2">RPE (1-10)</div>
-                  <div className="col-span-2 text-right">Actions</div>
+                  <div className="col-span-2 text-center">{t('workouts.setCol')}</div>
+                  <div className="col-span-3">{t('workouts.weightCol')}</div>
+                  <div className="col-span-3">{t('workouts.repsCol')}</div>
+                  <div className="col-span-2">{t('workouts.rpeCol')}</div>
+                  <div className="col-span-2 text-right">{t('workouts.actionsCol')}</div>
                 </div>
 
                 {/* Rows */}
@@ -503,7 +505,7 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
                         step="0.5"
                         min="1"
                         max="10"
-                        placeholder="opt"
+                        placeholder={t('workouts.rpeOptPlaceholder')}
                         value={set.rpe ?? ''}
                         onChange={(e) => handleUpdateSet(set.id, 'rpe', e.target.value)}
                         className="w-full px-2.5 py-1.5 rounded-lg text-xs bg-zinc-900 border border-zinc-800 text-white font-mono focus:border-amber-500 focus:outline-none placeholder-zinc-600"
@@ -515,7 +517,7 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
                         type="button"
                         onClick={() => handleDuplicateSet(idx)}
                         className="p-1 rounded text-zinc-500 hover:text-amber-400 hover:bg-zinc-800 transition-colors"
-                        title="Duplicate set"
+                        title={t('workouts.duplicateSet')}
                       >
                         <Copy className="w-3.5 h-3.5" />
                       </button>
@@ -524,7 +526,7 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
                         disabled={sets.length <= 1}
                         onClick={() => handleRemoveSet(set.id)}
                         className="p-1 rounded text-zinc-500 hover:text-red-400 hover:bg-zinc-800 disabled:opacity-20 disabled:pointer-events-none transition-colors"
-                        title="Remove set"
+                        title={t('workouts.removeSet')}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -537,21 +539,21 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
             {/* Movement-specific customization options */}
             <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/40 p-3.5 space-y-3">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 block">
-                Movement Specifics
+                {t('workouts.movementSpecifics')}
               </span>
 
               {movement === 'bench_press' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <Input
-                    label="Grip Width (cm)"
+                    label={t('workouts.gripWidthLabel')}
                     type="number"
                     step="1"
                     min="10"
                     max="120"
-                    placeholder="e.g. 81"
+                    placeholder={t('workouts.gripWidthPlaceholder')}
                     value={gripWidth}
                     onChange={(e) => setGripWidth(e.target.value)}
-                    helperText="Distance between index fingers on barbell rings"
+                    helperText={t('workouts.gripWidthHelper')}
                   />
                 </div>
               )}
@@ -559,16 +561,16 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
               {movement === 'squats' && (
                 <div className="space-y-1.5 max-w-xs">
                   <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300">
-                    Stance Width
+                    {t('workouts.stanceWidthLabel')}
                   </label>
                   <select
                     value={stance}
                     onChange={(e) => setStance(e.target.value as 'narrow' | 'medium' | 'wide')}
                     className="w-full px-3.5 py-2 rounded-lg text-xs bg-zinc-900 border border-zinc-800 text-zinc-100 focus:border-amber-500 focus:outline-none"
                   >
-                    <option value="narrow">Narrow (Hip-width)</option>
-                    <option value="medium">Medium (Shoulder-width)</option>
-                    <option value="wide">Wide (Sumo stance)</option>
+                    <option value="narrow">{t('workouts.stanceNarrow')}</option>
+                    <option value="medium">{t('workouts.stanceMedium')}</option>
+                    <option value="wide">{t('workouts.stanceWide')}</option>
                   </select>
                 </div>
               )}
@@ -576,22 +578,22 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
               {movement === 'deadlift' && (
                 <div className="space-y-1.5 max-w-xs">
                   <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300">
-                    Deadlift Style
+                    {t('workouts.deadliftStyleLabel')}
                   </label>
                   <select
                     value={deadliftStyle}
                     onChange={(e) => setDeadliftStyle(e.target.value as 'conventional' | 'sumo')}
                     className="w-full px-3.5 py-2 rounded-lg text-xs bg-zinc-900 border border-zinc-800 text-zinc-100 focus:border-amber-500 focus:outline-none"
                   >
-                    <option value="conventional">Conventional</option>
-                    <option value="sumo">Sumo</option>
+                    <option value="conventional">{t('workouts.deadliftConventional')}</option>
+                    <option value="sumo">{t('workouts.deadliftSumo')}</option>
                   </select>
                 </div>
               )}
 
               {movement === 'overhead_press' && (
                 <p className="text-xs text-zinc-400">
-                  Strict military standing barbell press telemetry with core bracing.
+                  {t('workouts.overheadPressDesc')}
                 </p>
               )}
             </div>
@@ -601,15 +603,15 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
           <div className="space-y-4">
             {/* Real-time pace widget */}
             <div className="rounded-xl bg-zinc-950/80 border border-zinc-800 p-3.5 flex items-center justify-between text-xs">
-              <span className="text-zinc-400">Calculated Average Pace:</span>
+              <span className="text-zinc-400">{t('workouts.calculatedAvgPace')}</span>
               <span className="font-bold text-cyan-400 font-mono text-sm">
-                {cardioPace ? `${cardioPace} min/km` : '—'}
+                {cardioPace ? `${cardioPace} ${t('workouts.paceUnit')}` : '—'}
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <Input
-                label="Distance (km)"
+                label={t('workouts.distanceInputLabel')}
                 type="number"
                 step="0.01"
                 min="0.1"
@@ -619,7 +621,7 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
                 required
               />
               <Input
-                label="Duration (minutes)"
+                label={t('workouts.durationInputLabel')}
                 type="number"
                 step="0.5"
                 min="1"
@@ -632,23 +634,23 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
 
             <div className="grid grid-cols-2 gap-3">
               <Input
-                label="Avg Heart Rate (bpm)"
+                label={t('workouts.heartRateInputLabel')}
                 type="number"
                 min="40"
                 max="240"
                 placeholder="150"
                 value={heartRate}
                 onChange={(e) => setHeartRate(e.target.value)}
-                helperText="Optional cardio telemetry"
+                helperText={t('workouts.heartRateHelper')}
               />
               <Input
-                label="Calories Burned (kcal)"
+                label={t('workouts.caloriesBurnedLabel')}
                 type="number"
                 min="1"
                 placeholder="320"
                 value={caloriesBurned}
                 onChange={(e) => setCaloriesBurned(e.target.value)}
-                helperText="Optional caloric expenditure"
+                helperText={t('workouts.caloriesHelper')}
               />
             </div>
           </div>
@@ -657,10 +659,10 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
         {/* Action buttons */}
         <div className="flex justify-end items-center gap-3 pt-3 border-t border-zinc-800">
           <Button type="button" variant="secondary" onClick={onClose} disabled={isSubmitting}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button type="submit" variant="primary" isLoading={isSubmitting}>
-            {isEditMode ? 'Save Changes' : 'Record Workout'}
+            {isEditMode ? t('workouts.saveChanges') : t('workouts.recordWorkout')}
           </Button>
         </div>
       </form>

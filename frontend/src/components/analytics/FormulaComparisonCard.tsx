@@ -6,8 +6,10 @@ import {
   calculateAllOneRepMaxes,
   calculateIntensityZones,
 } from '@/utils/fitness';
+import { useLocaleStore } from '@/store/useLocaleStore';
 
 export const FormulaComparisonCard: React.FC = () => {
+  const { t } = useLocaleStore();
   const [weight, setWeight] = useState<number>(100);
   const [reps, setReps] = useState<number>(5);
 
@@ -20,28 +22,28 @@ export const FormulaComparisonCard: React.FC = () => {
       name: 'Epley (1985)',
       value: breakdown.epley,
       formula: 'w · (1 + r / 30)',
-      description: 'Golden standard in powerlifting and strength sports',
+      description: t('analytics.epleyDesc'),
     },
     {
       id: 'brzycki',
       name: 'Brzycki (1993)',
       value: breakdown.brzycki,
       formula: 'w / (1.0278 - 0.0278 · r)',
-      description: 'Accurate for low-to-moderate repetitions (≤ 10 reps)',
+      description: t('analytics.brzyckiDesc'),
     },
     {
       id: 'lander',
       name: 'Lander (1985)',
       value: breakdown.lander,
       formula: '100w / (101.3 - 2.671 · r)',
-      description: 'Standard formula used in NSCA and exercise physiology',
+      description: t('analytics.landerDesc'),
     },
     {
       id: 'wathan',
       name: 'Wathan (1994)',
       value: breakdown.wathan,
       formula: '100w / (48.8 + 53.8 · e^(-0.075r))',
-      description: 'Exponential decay curve for higher-rep sets',
+      description: t('analytics.wathanDesc'),
     },
   ];
 
@@ -50,10 +52,10 @@ export const FormulaComparisonCard: React.FC = () => {
       <CardHeader className="pb-4">
         <div className="flex items-center gap-2">
           <Calculator className="h-5 w-5 text-amber-500" />
-          <CardTitle>Scientific 1RM Formula Comparison</CardTitle>
+          <CardTitle>{t('analytics.formulaComparisonTitle')}</CardTitle>
         </div>
         <CardDescription>
-          Compare laboratory-validated 1-Rep Max estimation formulas for any working load
+          {t('analytics.formulaComparisonDesc')}
         </CardDescription>
       </CardHeader>
 
@@ -62,8 +64,8 @@ export const FormulaComparisonCard: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl bg-zinc-850/60 p-4 border border-zinc-800">
           <div>
             <div className="flex justify-between text-xs font-medium text-zinc-300 mb-1.5">
-              <span>Working Weight</span>
-              <span className="font-mono text-amber-400 font-bold">{weight} kg</span>
+              <span>{t('analytics.workingWeight')}</span>
+              <span className="font-mono text-amber-400 font-bold">{weight} {t('common.kg')}</span>
             </div>
             <input
               type="range"
@@ -75,16 +77,16 @@ export const FormulaComparisonCard: React.FC = () => {
               className="w-full accent-amber-500 cursor-pointer h-1.5 bg-zinc-700 rounded-lg"
             />
             <div className="flex justify-between text-[10px] font-mono text-zinc-500 mt-1">
-              <span>20 kg</span>
-              <span>150 kg</span>
-              <span>350 kg</span>
+              <span>20 {t('common.kg')}</span>
+              <span>150 {t('common.kg')}</span>
+              <span>350 {t('common.kg')}</span>
             </div>
           </div>
 
           <div>
             <div className="flex justify-between text-xs font-medium text-zinc-300 mb-1.5">
-              <span>Repetitions Completed</span>
-              <span className="font-mono text-amber-400 font-bold">{reps} reps</span>
+              <span>{t('analytics.repetitionsCompleted')}</span>
+              <span className="font-mono text-amber-400 font-bold">{reps} {t('common.reps')}</span>
             </div>
             <input
               type="range"
@@ -96,9 +98,9 @@ export const FormulaComparisonCard: React.FC = () => {
               className="w-full accent-amber-500 cursor-pointer h-1.5 bg-zinc-700 rounded-lg"
             />
             <div className="flex justify-between text-[10px] font-mono text-zinc-500 mt-1">
-              <span>1 rep</span>
-              <span>10 reps</span>
-              <span>20 reps</span>
+              <span>1 {t('common.reps')}</span>
+              <span>10 {t('common.reps')}</span>
+              <span>20 {t('common.reps')}</span>
             </div>
           </div>
         </div>
@@ -111,10 +113,10 @@ export const FormulaComparisonCard: React.FC = () => {
             </div>
             <div>
               <div className="text-xs uppercase tracking-wider text-amber-400 font-semibold">
-                Consensus 1-Rep Maximum
+                {t('analytics.consensus1RM')}
               </div>
               <div className="text-sm text-zinc-300">
-                Average across all 4 validated models
+                {t('analytics.consensusDesc')}
               </div>
             </div>
           </div>
@@ -123,7 +125,7 @@ export const FormulaComparisonCard: React.FC = () => {
             <span className="text-3xl font-black font-mono text-zinc-100">
               {breakdown.average}
             </span>
-            <span className="text-sm font-bold text-amber-400 ml-1.5">kg</span>
+            <span className="text-sm font-bold text-amber-400 ml-1.5">{t('common.kg')}</span>
           </div>
         </div>
 
@@ -142,13 +144,13 @@ export const FormulaComparisonCard: React.FC = () => {
                     variant={diff === 0 ? 'default' : diff > 0 ? 'accent' : 'outline'}
                     size="sm"
                   >
-                    {diff > 0 ? `+${diff}` : diff < 0 ? `${diff}` : '0.0'} kg
+                    {diff > 0 ? `+${diff}` : diff < 0 ? `${diff}` : '0.0'} {t('common.kg')}
                   </Badge>
                 </div>
 
                 <div className="mt-3 text-2xl font-black font-mono text-zinc-100">
                   {f.value}{' '}
-                  <span className="text-xs font-normal text-zinc-400">kg</span>
+                  <span className="text-xs font-normal text-zinc-400">{t('common.kg')}</span>
                 </div>
 
                 <div className="mt-2 text-[10px] font-mono text-amber-400/80 bg-zinc-950/80 px-2 py-1 rounded">
@@ -167,7 +169,7 @@ export const FormulaComparisonCard: React.FC = () => {
           <div className="flex items-center gap-2 mb-3">
             <Layers className="h-4 w-4 text-amber-400" />
             <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-300">
-              Prescribed Training Intensity Zones (Based on Consensus 1RM)
+              {t('analytics.intensityZonesDesc')}
             </h4>
           </div>
 
@@ -176,8 +178,8 @@ export const FormulaComparisonCard: React.FC = () => {
               <thead className="border-b border-zinc-800 text-zinc-400 font-mono">
                 <tr>
                   <th className="py-2 pr-4">% 1RM</th>
-                  <th className="py-2 pr-4">Calculated Load</th>
-                  <th className="py-2">Repetition Target</th>
+                  <th className="py-2 pr-4">{t('analytics.calculatedLoad')}</th>
+                  <th className="py-2">{t('analytics.repetitionTarget')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/40 font-mono">
@@ -187,10 +189,10 @@ export const FormulaComparisonCard: React.FC = () => {
                       {z.percentage}%
                     </td>
                     <td className="py-2 pr-4 text-zinc-200 font-bold">
-                      {z.weight} kg
+                      {z.weight} {t('common.kg')}
                     </td>
                     <td className="py-2 text-zinc-400">
-                      {z.recommendedReps} reps
+                      {z.recommendedReps} {t('common.reps')}
                     </td>
                   </tr>
                 ))}

@@ -1,22 +1,26 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Dumbbell, Trophy, TrendingUp, ShieldCheck } from 'lucide-react';
+import { useLocaleStore } from '@/store/useLocaleStore';
 import { cn } from '@/utils/cn';
+import type { TranslationKey } from '@/locales';
 
 interface NavItem {
-  label: string;
+  key: TranslationKey;
   to: string;
   icon: React.ComponentType<{ className?: string }>;
 }
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
-  { label: 'Workouts', to: '/workouts', icon: Dumbbell },
-  { label: 'Leaderboard', to: '/leaderboard', icon: Trophy },
-  { label: 'Analytics', to: '/analytics', icon: TrendingUp },
+  { key: 'nav.dashboard', to: '/dashboard', icon: LayoutDashboard },
+  { key: 'nav.workouts', to: '/workouts', icon: Dumbbell },
+  { key: 'nav.leaderboard', to: '/leaderboard', icon: Trophy },
+  { key: 'nav.analytics', to: '/analytics', icon: TrendingUp },
 ];
 
 export const Sidebar: React.FC = () => {
+  const { t } = useLocaleStore();
+
   return (
     <aside className="w-64 shrink-0 h-full border-r border-zinc-800 bg-zinc-950/60 p-4 flex flex-col justify-between hidden md:flex select-none">
       <div className="space-y-6">
@@ -41,7 +45,7 @@ export const Sidebar: React.FC = () => {
                   }
                 >
                   <Icon className="w-4 h-4 shrink-0" />
-                  <span>{item.label}</span>
+                  <span>{t(item.key)}</span>
                 </NavLink>
               );
             })}
@@ -52,10 +56,10 @@ export const Sidebar: React.FC = () => {
       <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-4">
         <div className="flex items-center gap-2 text-xs font-semibold text-amber-500">
           <ShieldCheck className="w-4 h-4" />
-          <span>Iron Protocol</span>
+          <span>{t('common.ironProtocol')}</span>
         </div>
         <p className="mt-1 text-[11px] text-zinc-400 leading-relaxed">
-          Zero shortcuts. Every rep verified via microservice telemetry.
+          {t('common.ironProtocolDesc')}
         </p>
       </div>
     </aside>

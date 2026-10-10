@@ -2,10 +2,13 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Dumbbell, LogOut, User as UserIcon } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useLocaleStore } from '@/store/useLocaleStore';
 import { Button } from '@/components/ui/Button';
+import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 
 export const Navbar: React.FC = () => {
   const { user, logout } = useAuthStore();
+  const { t } = useLocaleStore();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -28,10 +31,12 @@ export const Navbar: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          <LanguageSwitcher />
+
           {user && (
             <Link
               to="/profile"
-              title="Личный кабинет / Профиль"
+              title={t('nav.profile')}
               className="flex items-center gap-2 px-2.5 py-1.5 sm:px-3 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 hover:bg-zinc-800 hover:border-amber-500/50 hover:text-white transition-all cursor-pointer group"
             >
               <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-500/10 text-amber-500 group-hover:bg-amber-500 group-hover:text-zinc-950 transition-colors">
@@ -42,7 +47,7 @@ export const Navbar: React.FC = () => {
               </span>
               <span className="text-zinc-500 hidden md:inline">({user.email})</span>
               <span className="hidden sm:inline-flex items-center text-[10px] font-medium text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded px-1.5 py-0.5 ml-0.5 group-hover:bg-amber-500 group-hover:text-zinc-950 transition-colors">
-                Профиль
+                {t('nav.profile')}
               </span>
             </Link>
           )}
@@ -52,10 +57,10 @@ export const Navbar: React.FC = () => {
             size="sm"
             onClick={handleLogout}
             className="text-zinc-400 hover:text-red-400 hover:bg-red-500/10 gap-1.5"
-            title="Log out"
+            title={t('nav.logout')}
           >
             <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Logout</span>
+            <span className="hidden sm:inline">{t('nav.logout')}</span>
           </Button>
         </div>
       </div>

@@ -3,9 +3,12 @@ import { Outlet, NavLink } from 'react-router-dom';
 import { LayoutDashboard, Dumbbell, Trophy, TrendingUp, User } from 'lucide-react';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
+import { useLocaleStore } from '@/store/useLocaleStore';
 import { cn } from '@/utils/cn';
 
 export const MainLayout: React.FC = () => {
+  const { t } = useLocaleStore();
+
   return (
     <div className="h-screen flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden">
       <Navbar />
@@ -32,7 +35,7 @@ export const MainLayout: React.FC = () => {
           }
         >
           <LayoutDashboard className="w-4 h-4" />
-          <span>Dashboard</span>
+          <span>{t('nav.dashboard')}</span>
         </NavLink>
         <NavLink
           to="/workouts"
@@ -44,7 +47,7 @@ export const MainLayout: React.FC = () => {
           }
         >
           <Dumbbell className="w-4 h-4" />
-          <span>Workouts</span>
+          <span>{t('nav.workouts')}</span>
         </NavLink>
         <NavLink
           to="/leaderboard"
@@ -56,7 +59,7 @@ export const MainLayout: React.FC = () => {
           }
         >
           <Trophy className="w-4 h-4" />
-          <span>Leaderboard</span>
+          <span>{t('nav.leaderboard')}</span>
         </NavLink>
         <NavLink
           to="/analytics"
@@ -68,7 +71,7 @@ export const MainLayout: React.FC = () => {
           }
         >
           <TrendingUp className="w-4 h-4" />
-          <span>Analytics</span>
+          <span>{t('nav.analytics')}</span>
         </NavLink>
         <NavLink
           to="/profile"
@@ -80,7 +83,7 @@ export const MainLayout: React.FC = () => {
           }
         >
           <User className="w-4 h-4" />
-          <span>Profile</span>
+          <span>{t('nav.profile')}</span>
         </NavLink>
       </nav>
 
