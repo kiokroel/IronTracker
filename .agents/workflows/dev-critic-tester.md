@@ -9,33 +9,31 @@
    - Создай и переключись на новую ветку по правилу `04-git-flow.md`: `<type>/<task-id>-<short-description>`.
 2. **Реализация:**
    - Изучи кодовую базу и архитектурные ограничения в `.agents/rules/`.
-   - Внеси изменения в код с соблюдением требований (Python 3.12+, FastAPI, SQLAlchemy 2.0 async, Pydantic v2, Transactional Outbox).
-   - Соблюдай стандарты безопасной разработки (Secure Coding): запрет `eval`/`exec`/`pickle`/`subprocess`, отсутствие захардкоженных секретов (только `.env`), параметризованные запросы к БД, защита от IDOR.
-   - Подготовь краткий отчет: какие файлы изменены, суть решения и меры безопасности.
+   - Для задач бэкенда (`iron-developer`): внеси изменения в код с соблюдением требований (Python 3.12+, FastAPI, SQLAlchemy 2.0 async, Pydantic v2, Transactional Outbox, отсутствие Dual Write).
+   - Для задач фронтенда (`iron-frontend`): React 18+, TypeScript (strict mode, без `any`), Tailwind CSS, Vite, Zustand, типизированные API-клиенты с Bearer JWT, визуализация Recharts, multi-stage Dockerfile.
+   - Соблюдай стандарты безопасной разработки (Secure Coding): запрет `eval`/`exec`/`pickle`/`subprocess`, отсутствие захардкоженных секретов (только `.env`), параметризованные запросы к БД, защита от XSS и IDOR.
+   - Подготовь отчет в `_workspace/01_developer_report.md` (или `_workspace/01_frontend_report.md`).
 
 ---
 
 ## 2. Фаза Тестировщика (Tester Phase)
 1. **Запуск проверок окружения и безопасности:**
-   - Запусти линтер и форматирование: `ruff check .` и `ruff format --check .`
-   - Запусти статический анализатор типов: `mypy --strict .`
-   - Запусти SAST-анализатор безопасности: `bandit -r workout_service/ leaderboard_service/ analytics_service/ notification_service/ shared/ tests/ -ll`
-   - Запусти аудит уязвимостей сторонних зависимостей: `pip-audit`
-   - Запусти тесты: `pytest`
+   - Для бэкенда: `ruff check .`, `ruff format --check .`, `mypy --strict .`, `bandit -ll`, `pip-audit`, `pytest`.
+   - Для фронтенда: `npm run lint`, `tsc --noEmit`, `npm audit`, unit-тесты компонентов.
 2. **Анализ результатов:**
    - Если тесты упали, линтер нашел ошибки или обнаружены уязвимости безопасности — сформируй отчет с точным трейсом ошибок (stack trace) и деталями уязвимостей.
    - При необходимости дополни тесты (граничные случаи, негативные сценарии, проверки IDOR и разграничения доступа).
    - Запрещено завершать этап, пока тесты и проверки безопасности не станут зелеными.
+   - Зафиксируй отчет в `_workspace/02_tester_report.md`.
 
 ---
 
 ## 3. Фаза Критика (Critic Phase)
 1. **Строгий архитектурный аудит и аудит безопасности:**
-   - Проверь отсутствие Dual Write (используется ли Transactional Outbox).
-   - Проверь валидацию JSONB через Discriminated Unions в Pydantic v2.
-   - Проверь асинхронность I/O (asyncpg, motor, redis.asyncio, aiokafka, aio-pika).
-   - Проверь безопасность и отсутствие бэкдоров: запрет `eval`, `exec`, `subprocess`, `pickle`, отсутствие захардкоженных паролей/токенов, отсутствие скрытых отладочных эндпоинтов и лазеек.
-   - Проверь чистоту кода и отсутствие забытых отладочных принтов.
+   - Бэкенд: отсутствие Dual Write (Transactional Outbox), валидация JSONB через Discriminated Unions в Pydantic v2, асинхронный I/O.
+   - Фронтенд: модульная структура `frontend/src/`, строгая типизация TypeScript без `any`, безопасное хранение JWT, защита от XSS/IDOR, Dockerfile multi-stage.
+   - Безопасность и отсутствие бэкдоров: запрет `eval`, `exec`, `subprocess`, `pickle`, отсутствие захардкоженных паролей/токенов, отсутствие скрытых отладочных эндпоинтов и лазеек.
+   - Чистота кода и отсутствие забытых отладочных принтов / console.log.
 2. **Вердикт:**
    - **`VERDICT: APPROVED`**: Код соответствует стандартам проекта, тесты зеленые, уязвимости отсутствуют. Переходи к согласованию коммита с пользователем.
    - **`VERDICT: REJECTED`**: Нумерованный список замечаний с категориями ([Architecture / Security / Bug]) и возвращение на фазу Разработчика.
