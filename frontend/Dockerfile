@@ -17,4 +17,8 @@ COPY Caddyfile /etc/caddy/Caddyfile
 
 EXPOSE 80
 
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
+  CMD wget -q --spider http://localhost:80/health || exit 1
+
 CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
+

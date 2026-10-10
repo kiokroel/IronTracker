@@ -1,8 +1,16 @@
 :80 {
     root * /usr/share/caddy
-    file_server
 
-    try_files {path} /index.html
+    # Healthcheck endpoint for container monitoring
+    handle /health {
+        respond "OK" 200
+    }
+
+    # SPA routing fallback: serve static file or fall back to /index.html
+    handle {
+        try_files {path} /index.html
+        file_server
+    }
 
     header {
         X-Content-Type-Options nosniff
@@ -10,3 +18,4 @@
         Referrer-Policy strict-origin-when-cross-origin
     }
 }
+

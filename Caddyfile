@@ -24,9 +24,14 @@
         reverse_proxy {$LEADERBOARD_SERVICE_URL:leaderboard-service:8002}
     }
 
-    # Default fallback handler: 404 Not Found
-    handle {
+    # Fallback for unmatched API routes
+    handle /api/* {
         header Content-Type application/json
         respond "{\"detail\":\"Not Found\"}" 404
+    }
+
+    # Reverse proxy to Frontend Application (SPA fallback)
+    handle {
+        reverse_proxy {$FRONTEND_URL:frontend:80}
     }
 }

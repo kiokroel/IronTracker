@@ -272,9 +272,14 @@ def test_caddy_depends_on_app_services(compose_config: dict[str, Any]) -> None:
     if isinstance(depends_on, dict):
         assert "workout-service" in depends_on, "caddy must depend on workout-service"
         assert "leaderboard-service" in depends_on, "caddy must depend on leaderboard-service"
+        assert "frontend" in depends_on, "caddy must depend on frontend"
+        assert depends_on["frontend"].get("condition") == "service_healthy", (
+            "caddy must depend on frontend with condition: service_healthy"
+        )
     elif isinstance(depends_on, list):
         assert "workout-service" in depends_on
         assert "leaderboard-service" in depends_on
+        assert "frontend" in depends_on
     else:
         pytest.fail("caddy depends_on must be list or mapping")
 
@@ -333,3 +338,62 @@ def test_docker_compose_cli_config_validation() -> None:
         check=False,
     )
     assert result.returncode == 0, f"docker compose config failed: {result.stderr}"
+
+
+def test_compose_contains_frontend_service(compose_config: dict[str, Any]) -> None:
+    """Verify that frontend service is defined in docker-compose.yml with proper config."""
+    services = compose_config.get("services", {})
+    assert "frontend" in services, "frontend service must be defined in docker-compose.yml"
+
+    frontend_svc = services["frontend"]
+    assert isinstance(frontend_svc, dict)
+    assert frontend_svc.get("container_name") == "irontracker-frontend"
+
+    # Build section
+    build = frontend_svc.get("build", {})
+    assert isinstance(build, dict), "frontend service must define build mapping"
+    assert build.get("context") == "./frontend", "frontend build context must be ./frontend"
+    assert build.get("dockerfile") == "Dockerfile", "frontend dockerfile must be Dockerfile"
+
+    # Network
+    networks = frontend_svc.get("networks", [])
+    assert "irontracker-network" in networks, "frontend must join irontracker-network"
+
+    # Healthcheck
+    healthcheck = frontend_svc.get("healthcheck")
+    assert isinstance(healthcheck, dict), "frontend service must define healthcheck"
+    test_cmd = healthcheck.get("test")
+    test_str = " ".join(test_cmd) if isinstance(test_cmd, list) else str(test_cmd)
+    assert "wget" in test_str and "health" in test_str, (
+        f"Frontend healthcheck must verify /health using wget, got: {test_str}"
+    )
+
+
+def test_frontend_dockerfile_multistage_and_configuration() -> None:
+    """Verify frontend Dockerfile multi-stage build, base images, and healthcheck."""
+    dockerfile_path = PROJECT_ROOT / "frontend" / "Dockerfile"
+    assert dockerfile_path.is_file(), "frontend/Dockerfile must exist"
+    content = dockerfile_path.read_text(encoding="utf-8")
+
+    # Multi-stage: Builder stage with node:20-alpine
+    assert re.search(r"FROM\s+node:20-alpine\s+AS\s+builder", content, re.IGNORECASE), (
+        "Stage 1 must be: FROM node:20-alpine AS builder"
+    )
+    assert "npm ci" in content, "Builder stage must install dependencies via npm ci"
+    assert "npm run build" in content, "Builder stage must build bundle via npm run build"
+
+    # Multi-stage: Production static server with caddy:2-alpine
+    assert re.search(r"FROM\s+caddy:2-alpine", content, re.IGNORECASE), (
+        "Stage 2 must be: FROM caddy:2-alpine"
+    )
+    assert re.search(r"COPY\s+--from=builder\s+/app/dist\s+/usr/share/caddy", content), (
+        "Must copy compiled assets to /usr/share/caddy"
+    )
+    assert re.search(r"COPY\s+Caddyfile\s+/etc/caddy/Caddyfile", content), (
+        "Must copy Caddyfile configuration"
+    )
+    assert "EXPOSE 80" in content, "Must expose port 80"
+
+    # Healthcheck
+    assert "HEALTHCHECK" in content, "Must define container HEALTHCHECK"
+    assert "wget" in content and "/health" in content, "HEALTHCHECK must probe /health"
