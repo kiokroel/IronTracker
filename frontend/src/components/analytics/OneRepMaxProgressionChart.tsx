@@ -2,6 +2,8 @@ import React, { useState, memo } from 'react';
 import { TrendingUp, Dumbbell, Target } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { OneRepMaxFormula, calculate1RMByFormula } from '@/utils/fitness';
+import { useLocaleStore } from '@/store/useLocaleStore';
+import type { TranslationKey } from '@/locales';
 
 export interface ExerciseSetRecord {
   date: string;
@@ -14,20 +16,26 @@ interface OneRepMaxProgressionChartProps {
   records: Record<string, ExerciseSetRecord[]>;
 }
 
+interface ExerciseOption {
+  id: string;
+  key: TranslationKey;
+}
+
 export const OneRepMaxProgressionChart: React.FC<OneRepMaxProgressionChartProps> = memo(({ records }) => {
+  const { t } = useLocaleStore();
   const [selectedExercise, setSelectedExercise] = useState<string>('bench_press');
   const [selectedFormula, setSelectedFormula] = useState<OneRepMaxFormula>('average');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-  const exercises = [
-    { id: 'bench_press', label: 'Bench Press' },
-    { id: 'squat', label: 'Squat' },
-    { id: 'deadlift', label: 'Deadlift' },
-    { id: 'overhead_press', label: 'Overhead Press' },
+  const exercises: ExerciseOption[] = [
+    { id: 'bench_press', key: 'workouts.bench_press' },
+    { id: 'squat', key: 'workouts.squat' },
+    { id: 'deadlift', key: 'workouts.deadlift' },
+    { id: 'overhead_press', key: 'workouts.overhead_press' },
   ];
 
   const formulas: { id: OneRepMaxFormula; label: string }[] = [
-    { id: 'average', label: 'Average' },
+    { id: 'average', label: t('analytics.formulaAverage') },
     { id: 'epley', label: 'Epley' },
     { id: 'brzycki', label: 'Brzycki' },
     { id: 'lander', label: 'Lander' },
@@ -47,13 +55,16 @@ export const OneRepMaxProgressionChart: React.FC<OneRepMaxProgressionChartProps>
     .filter((d) => d.oneRepMax > 0)
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
+  const currentExerciseObj = exercises.find((e) => e.id === selectedExercise);
+  const currentExerciseLabel = currentExerciseObj ? t(currentExerciseObj.key) : selectedExercise;
+
   if (data.length === 0) {
     return (
       <Card className="border-zinc-800 bg-zinc-900/60 p-8 shadow-lg">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div className="flex items-center gap-2">
             <Dumbbell className="h-5 w-5 text-amber-500" />
-            <CardTitle>1RM Strength Progression</CardTitle>
+            <CardTitle>{t('analytics.oneRepMaxTitle')}</CardTitle>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {exercises.map((ex) => (
@@ -66,7 +77,7 @@ export const OneRepMaxProgressionChart: React.FC<OneRepMaxProgressionChartProps>
                     : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                {ex.label}
+                {t(ex.key)}
               </button>
             ))}
           </div>
@@ -75,10 +86,10 @@ export const OneRepMaxProgressionChart: React.FC<OneRepMaxProgressionChartProps>
         <div className="py-12 text-center">
           <Target className="mx-auto h-10 w-10 text-zinc-600" />
           <h3 className="mt-3 text-base font-semibold text-zinc-300">
-            No history for {exercises.find((e) => e.id === selectedExercise)?.label}
+            {t('analytics.noHistoryFor', { exercise: currentExerciseLabel })}
           </h3>
           <p className="mt-1 text-sm text-zinc-500">
-            Log sets with weight and reps to generate scientific 1RM estimates.
+            {t('analytics.logSetsDesc')}
           </p>
         </div>
       </Card>
@@ -121,10 +132,10 @@ export const OneRepMaxProgressionChart: React.FC<OneRepMaxProgressionChartProps>
         <div>
           <div className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-amber-500" />
-            <CardTitle>1RM Strength Progression</CardTitle>
+            <CardTitle>{t('analytics.oneRepMaxTitle')}</CardTitle>
           </div>
           <CardDescription>
-            Estimated one-rep maximum dynamics across training sessions
+            {t('analytics.subtitle')}
           </CardDescription>
         </div>
 
@@ -140,7 +151,7 @@ export const OneRepMaxProgressionChart: React.FC<OneRepMaxProgressionChartProps>
                   : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              {ex.label}
+              {t(ex.key)}
             </button>
           ))}
         </div>
@@ -150,7 +161,7 @@ export const OneRepMaxProgressionChart: React.FC<OneRepMaxProgressionChartProps>
         {/* Sub-header: Formula switcher and Best/Current values */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-y border-zinc-800/80 py-2.5">
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-zinc-500">Formula:</span>
+            <span className="text-zinc-500">{t('analytics.formula')}:</span>
             {formulas.map((f) => (
               <button
                 key={f.id}
@@ -168,12 +179,12 @@ export const OneRepMaxProgressionChart: React.FC<OneRepMaxProgressionChartProps>
 
           <div className="flex items-center gap-4 text-xs font-mono">
             <div className="text-zinc-400">
-              Current:{' '}
-              <span className="text-zinc-100 font-bold">{latest1RM} kg</span>
+              {t('analytics.estimatedMax')}:{' '}
+              <span className="text-zinc-100 font-bold">{latest1RM} {t('common.kg')}</span>
             </div>
             <div className="text-zinc-400">
-              Peak PR:{' '}
-              <span className="text-amber-400 font-bold">{best1RM} kg</span>
+              {t('analytics.best1RM')}:{' '}
+              <span className="text-amber-400 font-bold">{best1RM} {t('common.kg')}</span>
             </div>
           </div>
         </div>
@@ -212,7 +223,7 @@ export const OneRepMaxProgressionChart: React.FC<OneRepMaxProgressionChartProps>
                     textAnchor="end"
                     className="text-[10px] font-mono fill-zinc-500"
                   >
-                    {val}kg
+                    {val}{t('common.kg')}
                   </text>
                 </g>
               );
@@ -374,9 +385,9 @@ export const OneRepMaxProgressionChart: React.FC<OneRepMaxProgressionChartProps>
                     fontFamily="ui-monospace, monospace"
                     className="select-none"
                   >
-                    {pt.oneRepMax} kg 1RM{' '}
+                    {pt.oneRepMax} {t('common.kg')} 1RM{' '}
                     <tspan fill="#a1a1aa" fontSize="11" fontWeight="normal">
-                      ({pt.weight}kg × {pt.reps})
+                      ({pt.weight}{t('common.kg')} × {pt.reps})
                     </tspan>
                   </text>
                 </g>

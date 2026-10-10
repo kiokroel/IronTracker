@@ -2,13 +2,16 @@ import React, { useEffect } from 'react';
 import { Trophy, RefreshCw, Flame, Clock, AlertTriangle } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useLeaderboardStore } from '@/store/useLeaderboardStore';
+import { useLocaleStore } from '@/store/useLocaleStore';
 import { LeaderboardPeriod } from '@/types/leaderboard';
 import { Button } from '@/components/ui/Button';
 import { UserRankCard } from '@/components/leaderboard/UserRankCard';
 import { LeaderboardTable } from '@/components/leaderboard/LeaderboardTable';
+import type { TranslationKey } from '@/locales';
 
 export const LeaderboardPage: React.FC = () => {
   const { user } = useAuthStore();
+  const { t } = useLocaleStore();
   const {
     entries,
     totalEntries,
@@ -35,10 +38,10 @@ export const LeaderboardPage: React.FC = () => {
     }
   }, [user?.id, fetchLeaderboard, fetchMyRank]);
 
-  const periods: { id: LeaderboardPeriod; label: string }[] = [
-    { id: 'all', label: 'All Time' },
-    { id: 'month', label: 'This Month' },
-    { id: 'week', label: 'This Week' },
+  const periods: { id: LeaderboardPeriod; key: TranslationKey }[] = [
+    { id: 'all', key: 'leaderboard.allTime' },
+    { id: 'month', key: 'leaderboard.monthly' },
+    { id: 'week', key: 'leaderboard.weekly' },
   ];
 
   return (
@@ -51,11 +54,11 @@ export const LeaderboardPage: React.FC = () => {
               <Trophy className="h-5 w-5" />
             </div>
             <h1 className="text-3xl font-extrabold tracking-tight text-zinc-100">
-              Tonnage Leaderboard
+              {t('leaderboard.title')}
             </h1>
           </div>
           <p className="mt-1.5 text-sm text-zinc-400">
-            Real-time athlete standings calculated instantly using Redis Sorted Sets (ZSET).
+            {t('leaderboard.subtitle')}
           </p>
         </div>
 
@@ -64,7 +67,7 @@ export const LeaderboardPage: React.FC = () => {
           {lastSyncedAt && (
             <div className="hidden sm:flex items-center gap-1.5 text-xs text-zinc-500">
               <Clock className="h-3.5 w-3.5" />
-              <span>Synced {lastSyncedAt.toLocaleTimeString()}</span>
+              <span>{lastSyncedAt.toLocaleTimeString()}</span>
             </div>
           )}
 
@@ -76,7 +79,7 @@ export const LeaderboardPage: React.FC = () => {
             className="flex items-center gap-2 border-zinc-700 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200"
           >
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin text-amber-400' : ''}`} />
-            <span>{isRefreshing ? 'Syncing...' : 'Refresh'}</span>
+            <span>{isRefreshing ? t('common.loading') : t('leaderboard.progress')}</span>
           </Button>
         </div>
       </div>
@@ -92,7 +95,7 @@ export const LeaderboardPage: React.FC = () => {
             onClick={clearError}
             className="text-xs underline hover:text-red-300 ml-4"
           >
-            Dismiss
+            {t('common.close')}
           </button>
         </div>
       )}
@@ -108,7 +111,7 @@ export const LeaderboardPage: React.FC = () => {
       <div className="flex items-center gap-2 border-b border-zinc-800/60 pb-3">
         <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mr-2 flex items-center gap-1">
           <Flame className="h-3.5 w-3.5 text-amber-500" />
-          Period:
+          Период:
         </span>
         {periods.map((p) => (
           <button
@@ -120,7 +123,7 @@ export const LeaderboardPage: React.FC = () => {
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
             }`}
           >
-            {p.label}
+            {t(p.key)}
           </button>
         ))}
       </div>

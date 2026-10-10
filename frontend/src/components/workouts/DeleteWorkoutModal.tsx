@@ -4,6 +4,8 @@ import { Workout, isStrengthMetrics, isCardioMetrics } from '@/types/workout';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { formatWorkoutDate } from '@/utils/date';
+import { formatExerciseName } from '@/utils/exercise';
+import { useLocaleStore } from '@/store/useLocaleStore';
 
 export interface DeleteWorkoutModalProps {
   isOpen: boolean;
@@ -20,17 +22,22 @@ export const DeleteWorkoutModal: React.FC<DeleteWorkoutModalProps> = ({
   onConfirm,
   isDeleting,
 }) => {
+  const { t, locale } = useLocaleStore();
+
   if (!workout) return null;
 
-  const exerciseName = (workout.type || workout.metrics.exercise_type || 'Workout')
-    .replace(/_/g, ' ')
-    .toUpperCase();
+  const rawExerciseName =
+    ('exercise_name' in workout.metrics && workout.metrics.exercise_name) ||
+    workout.type ||
+    workout.metrics.exercise_type;
+
+  const exerciseName = formatExerciseName(rawExerciseName, t);
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Delete Workout Record"
+      title={t('workouts.deleteConfirmTitle')}
       className="max-w-md"
     >
       <div className="space-y-4 mt-2">
@@ -39,11 +46,10 @@ export const DeleteWorkoutModal: React.FC<DeleteWorkoutModalProps> = ({
           <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
           <div className="text-xs text-zinc-300 space-y-1">
             <p className="font-semibold text-red-300">
-              Are you sure you want to delete this workout?
+              {t('workouts.deleteConfirmWarningTitle')}
             </p>
             <p className="text-zinc-400 text-[11px] leading-relaxed">
-              This action cannot be undone. The session telemetry will be purged from your journal,
-              and leaderboard ranking metrics will be recalculated.
+              {t('workouts.deleteConfirmWarningDesc')}
             </p>
           </div>
         </div>
@@ -51,32 +57,32 @@ export const DeleteWorkoutModal: React.FC<DeleteWorkoutModalProps> = ({
         {/* Workout summary */}
         <div className="rounded-lg bg-zinc-950/70 border border-zinc-800 p-3 text-xs space-y-2">
           <div className="flex justify-between items-center">
-            <span className="text-zinc-500 font-medium">Exercise:</span>
+            <span className="text-zinc-500 font-medium">{t('workouts.exerciseLabel')}</span>
             <span className="font-bold text-white tracking-wide">{exerciseName}</span>
           </div>
 
           {isStrengthMetrics(workout.metrics) && (
             <div className="flex justify-between items-center">
-              <span className="text-zinc-500 font-medium">Sets / Weight:</span>
+              <span className="text-zinc-500 font-medium">{t('workouts.setsWeightLabel')}</span>
               <span className="font-bold text-amber-400 font-mono">
-                {workout.metrics.sets} sets × {workout.metrics.reps} reps @ {workout.metrics.weight} kg
+                {workout.metrics.sets} {t('common.sets')} × {workout.metrics.reps} {t('common.reps')} @ {workout.metrics.weight} {t('common.kg')}
               </span>
             </div>
           )}
 
           {isCardioMetrics(workout.metrics) && (
             <div className="flex justify-between items-center">
-              <span className="text-zinc-500 font-medium">Distance / Duration:</span>
+              <span className="text-zinc-500 font-medium">{t('workouts.distanceDurationLabel')}</span>
               <span className="font-bold text-cyan-400 font-mono">
-                {workout.metrics.distance_km} km / {workout.metrics.duration_minutes} min
+                {workout.metrics.distance_km} {t('common.km')} / {workout.metrics.duration_minutes} {t('common.min')}
               </span>
             </div>
           )}
 
           <div className="flex justify-between items-center pt-1 border-t border-zinc-800/60">
-            <span className="text-zinc-500 font-medium">Logged Date:</span>
+            <span className="text-zinc-500 font-medium">{t('workouts.loggedDateLabel')}</span>
             <span className="text-zinc-300 font-mono text-[11px]">
-              {formatWorkoutDate(workout.date || workout.created_at)}
+              {formatWorkoutDate(workout.date || workout.created_at, locale === 'ru' ? 'ru-RU' : 'en-US')}
             </span>
           </div>
         </div>
@@ -89,7 +95,7 @@ export const DeleteWorkoutModal: React.FC<DeleteWorkoutModalProps> = ({
             onClick={onClose}
             disabled={isDeleting}
           >
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             type="button"
@@ -99,7 +105,7 @@ export const DeleteWorkoutModal: React.FC<DeleteWorkoutModalProps> = ({
             className="gap-1.5"
           >
             <Trash2 className="w-4 h-4" />
-            Delete Workout
+            {t('workouts.deleteWorkoutBtn')}
           </Button>
         </div>
       </div>

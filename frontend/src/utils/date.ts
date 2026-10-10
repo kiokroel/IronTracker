@@ -2,11 +2,11 @@
  * Format ISO datetime string to localized human readable string.
  * e.g. "Oct 10, 2026, 14:30"
  */
-export function formatWorkoutDate(dateStr: string): string {
+export function formatWorkoutDate(dateStr: string, locale: string = 'en-US'): string {
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
-    return new Intl.DateTimeFormat('en-US', {
+    return new Intl.DateTimeFormat(locale, {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -53,11 +53,28 @@ export function getWorkoutDateKey(dateStr: string): string {
   }
 }
 
+export interface DateGroupHeadingOptions {
+  locale?: string;
+  todayText?: string;
+  yesterdayText?: string;
+  undatedText?: string;
+}
+
 /**
  * Format date key (YYYY-MM-DD) into user-friendly heading (Today, Yesterday, or full date).
  */
-export function formatDateGroupHeading(dateKey: string): string {
-  if (dateKey === 'unknown') return 'Undated Sessions';
+export function formatDateGroupHeading(
+  dateKey: string,
+  options?: DateGroupHeadingOptions
+): string {
+  const {
+    locale = 'en-US',
+    todayText = 'Today',
+    yesterdayText = 'Yesterday',
+    undatedText = 'Undated Sessions',
+  } = options || {};
+
+  if (dateKey === 'unknown') return undatedText;
 
   const today = new Date();
   const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(
@@ -71,16 +88,16 @@ export function formatDateGroupHeading(dateKey: string): string {
   ).padStart(2, '0')}`;
 
   if (dateKey === todayKey) {
-    return 'Today';
+    return todayText;
   }
   if (dateKey === yesterdayKey) {
-    return 'Yesterday';
+    return yesterdayText;
   }
 
   const [year, month, day] = dateKey.split('-').map(Number);
   const targetDate = new Date(year, month - 1, day);
 
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat(locale, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',

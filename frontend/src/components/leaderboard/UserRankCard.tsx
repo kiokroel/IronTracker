@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { formatWeight } from '@/utils/fitness';
 import { UserRankResponse } from '@/types/leaderboard';
+import { useLocaleStore } from '@/store/useLocaleStore';
 
 interface UserRankCardProps {
   myRank: UserRankResponse | null;
@@ -16,15 +17,16 @@ export const UserRankCard: React.FC<UserRankCardProps> = ({
   gapToNextRank,
   totalEntries,
 }) => {
+  const { t } = useLocaleStore();
   const rank = myRank?.rank;
   const score = myRank?.score ?? 0;
 
   const getRankBadgeInfo = (): { label: string; variant: 'default' | 'accent' | 'outline' } => {
-    if (!rank) return { label: 'Unranked', variant: 'default' };
-    if (rank === 1) return { label: 'Leader #1', variant: 'accent' };
-    if (rank <= 3) return { label: `Podium #${rank}`, variant: 'accent' };
-    if (rank <= 10) return { label: `Top 10 (#${rank})`, variant: 'accent' };
-    return { label: `Rank #${rank}`, variant: 'outline' };
+    if (!rank) return { label: t('leaderboard.unranked'), variant: 'default' };
+    if (rank === 1) return { label: t('leaderboard.leader'), variant: 'accent' };
+    if (rank <= 3) return { label: t('leaderboard.podium', { rank }), variant: 'accent' };
+    if (rank <= 10) return { label: t('leaderboard.top10Badge', { rank }), variant: 'accent' };
+    return { label: t('leaderboard.rankBadge', { rank }), variant: 'outline' };
   };
 
   const badgeInfo = getRankBadgeInfo();
@@ -43,14 +45,14 @@ export const UserRankCard: React.FC<UserRankCardProps> = ({
           <div>
             <div className="flex items-center gap-2.5">
               <h2 className="text-xl font-bold tracking-tight text-zinc-100">
-                Your Iron Rank
+                {t('leaderboard.yourRank')}
               </h2>
               <Badge variant={badgeInfo.variant} size="sm">
                 {badgeInfo.label}
               </Badge>
             </div>
             <p className="mt-1 text-sm text-zinc-400">
-              Personal standing in the global tonnage leaderboard calculated via Redis ZSET.
+              {t('leaderboard.personalStanding')}
             </p>
           </div>
         </div>
@@ -60,7 +62,7 @@ export const UserRankCard: React.FC<UserRankCardProps> = ({
           <div className="rounded-xl bg-zinc-800/50 p-3.5 border border-zinc-800">
             <div className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
               <Award className="h-3.5 w-3.5 text-amber-400" />
-              Position
+              {t('leaderboard.position')}
             </div>
             <div className="mt-1 text-2xl font-black font-mono text-zinc-100">
               {rank ? `#${rank}` : '—'}
@@ -76,7 +78,7 @@ export const UserRankCard: React.FC<UserRankCardProps> = ({
           <div className="rounded-xl bg-zinc-800/50 p-3.5 border border-zinc-800">
             <div className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
               <Zap className="h-3.5 w-3.5 text-amber-400" />
-              Total Lifted
+              {t('leaderboard.totalLifted')}
             </div>
             <div className="mt-1 text-2xl font-black font-mono text-amber-400">
               {formatWeight(score)}
@@ -87,19 +89,19 @@ export const UserRankCard: React.FC<UserRankCardProps> = ({
           <div className="col-span-2 sm:col-span-1 rounded-xl bg-zinc-800/50 p-3.5 border border-zinc-800">
             <div className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
               <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
-              To Next Rank
+              {t('leaderboard.toNextRank')}
             </div>
             <div className="mt-1 text-2xl font-black font-mono text-zinc-100">
               {rank === 1 ? (
                 <span className="text-sm font-semibold text-amber-400 flex items-center gap-1">
-                  At the peak 👑
+                  {t('leaderboard.atThePeak')}
                 </span>
               ) : gapToNextRank !== null ? (
                 <span className="text-emerald-400">
                   +{formatWeight(gapToNextRank)}
                 </span>
               ) : (
-                <span className="text-sm text-zinc-500">Log workout</span>
+                <span className="text-sm text-zinc-500">{t('leaderboard.logWorkout')}</span>
               )}
             </div>
           </div>

@@ -9,6 +9,7 @@ import {
   BarChart2,
 } from 'lucide-react';
 import { useWorkoutStore } from '@/store/useWorkoutStore';
+import { useLocaleStore } from '@/store/useLocaleStore';
 import { isStrengthMetrics } from '@/types/workout';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -34,6 +35,7 @@ import {
 
 export const AnalyticsPage: React.FC = () => {
   const { workouts, isLoading, fetchWorkouts } = useWorkoutStore();
+  const { t } = useLocaleStore();
 
   useEffect(() => {
     fetchWorkouts();
@@ -191,11 +193,11 @@ export const AnalyticsPage: React.FC = () => {
               <TrendingUp className="h-5 w-5" />
             </div>
             <h1 className="text-3xl font-extrabold tracking-tight text-zinc-100">
-              Analytics & Progression
+              {t('analytics.title')}
             </h1>
           </div>
           <p className="mt-1.5 text-sm text-zinc-400">
-            Deep physiological metrics, multi-formula 1RM trends, and personal records.
+            {t('analytics.subtitle')}
           </p>
         </div>
 
@@ -205,7 +207,7 @@ export const AnalyticsPage: React.FC = () => {
             size="sm"
             className="flex items-center gap-2 border-zinc-700 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200"
           >
-            <span>Log Workout</span>
+            <span>{t('workouts.logWorkout')}</span>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </Link>
@@ -214,18 +216,18 @@ export const AnalyticsPage: React.FC = () => {
       {isLoading && workouts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24">
           <Loader size="lg" />
-          <p className="mt-4 text-sm text-zinc-400">Loading training analytics...</p>
+          <p className="mt-4 text-sm text-zinc-400">{t('common.loading')}</p>
         </div>
       ) : workouts.length === 0 ? (
         <Card className="border-zinc-800 bg-zinc-900/40 p-12 text-center shadow-lg">
           <BarChart2 className="mx-auto h-16 w-16 text-zinc-600" />
-          <h2 className="mt-4 text-xl font-bold text-zinc-100">No workout records found</h2>
+          <h2 className="mt-4 text-xl font-bold text-zinc-100">{t('workouts.noWorkouts')}</h2>
           <p className="mt-2 max-w-md mx-auto text-sm text-zinc-400">
-            Your analytics dashboard will automatically populate with 1RM charts, volume trends, and PR records once you log your first training session.
+            {t('workouts.noWorkoutsDesc')}
           </p>
           <div className="mt-6">
             <Link to="/workouts">
-              <Button variant="primary">Start Logging Workouts</Button>
+              <Button variant="primary">{t('workouts.logWorkout')}</Button>
             </Link>
           </div>
         </Card>
@@ -240,7 +242,7 @@ export const AnalyticsPage: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-wider text-zinc-400 font-medium">
-                    Total Tonnage Lifted
+                    {t('analytics.totalVolume')}
                   </div>
                   <div className="text-2xl font-black font-mono text-zinc-100 mt-0.5">
                     {formatWeight(totalTonnage)}
@@ -256,10 +258,10 @@ export const AnalyticsPage: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-wider text-zinc-400 font-medium">
-                    Absolute Peak 1RM
+                    {t('analytics.best1RM')}
                   </div>
                   <div className="text-2xl font-black font-mono text-amber-400 mt-0.5">
-                    {peak1RM > 0 ? `${peak1RM} kg` : '—'}
+                    {peak1RM > 0 ? `${peak1RM} ${t('common.kg')}` : '—'}
                   </div>
                 </div>
               </div>
@@ -272,7 +274,7 @@ export const AnalyticsPage: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-wider text-zinc-400 font-medium">
-                    Strength Sets Logged
+                    {t('analytics.totalWorkouts')}
                   </div>
                   <div className="text-2xl font-black font-mono text-zinc-100 mt-0.5">
                     {strengthWorkoutsCount}

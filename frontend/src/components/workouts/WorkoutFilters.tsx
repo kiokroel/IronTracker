@@ -2,6 +2,8 @@ import React from 'react';
 import { Filter, Search, RotateCcw, Calendar } from 'lucide-react';
 import { WorkoutFiltersState } from '@/types/workout';
 import { Button } from '@/components/ui/Button';
+import { useLocaleStore } from '@/store/useLocaleStore';
+import type { TranslationKey } from '@/locales';
 
 export interface WorkoutFiltersProps {
   filters: WorkoutFiltersState;
@@ -10,13 +12,18 @@ export interface WorkoutFiltersProps {
   totalCount?: number;
 }
 
-const MOVEMENT_CHIPS = [
-  { id: 'all', label: 'All Lifts' },
-  { id: 'bench_press', label: 'Bench Press' },
-  { id: 'squats', label: 'Squats' },
-  { id: 'deadlift', label: 'Deadlift' },
-  { id: 'overhead_press', label: 'Overhead Press' },
-  { id: 'cardio', label: 'Cardio' },
+interface ChipItem {
+  id: string;
+  key: TranslationKey;
+}
+
+const MOVEMENT_CHIPS: ChipItem[] = [
+  { id: 'all', key: 'workouts.allLifts' },
+  { id: 'bench_press', key: 'workouts.bench_press' },
+  { id: 'squats', key: 'workouts.squat' },
+  { id: 'deadlift', key: 'workouts.deadlift' },
+  { id: 'overhead_press', key: 'workouts.overhead_press' },
+  { id: 'cardio', key: 'workouts.cardio' },
 ];
 
 export const WorkoutFilters: React.FC<WorkoutFiltersProps> = ({
@@ -25,6 +32,8 @@ export const WorkoutFilters: React.FC<WorkoutFiltersProps> = ({
   onReset,
   totalCount,
 }) => {
+  const { t } = useLocaleStore();
+
   const hasActiveFilters =
     filters.exerciseType !== 'all' ||
     Boolean(filters.searchQuery) ||
@@ -39,7 +48,7 @@ export const WorkoutFilters: React.FC<WorkoutFiltersProps> = ({
         <div className="flex items-center gap-1.5 flex-wrap">
           <div className="flex items-center gap-1 text-xs text-zinc-400 mr-1 select-none">
             <Filter className="w-3.5 h-3.5 text-zinc-500" />
-            <span className="hidden sm:inline">Category:</span>
+            <span className="hidden sm:inline">{t('workouts.category')}:</span>
           </div>
           {MOVEMENT_CHIPS.map((chip) => {
             const isActive = filters.exerciseType === chip.id;
@@ -54,7 +63,7 @@ export const WorkoutFilters: React.FC<WorkoutFiltersProps> = ({
                     : 'bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
                 }`}
               >
-                {chip.label}
+                {t(chip.key)}
               </button>
             );
           })}
@@ -70,7 +79,7 @@ export const WorkoutFilters: React.FC<WorkoutFiltersProps> = ({
           </div>
           <input
             type="text"
-            placeholder="Search by exercise, notes or style..."
+            placeholder={t('workouts.searchPlaceholder')}
             value={filters.searchQuery}
             onChange={(e) => onFilterChange('searchQuery', e.target.value)}
             className="w-full pl-9 pr-3 py-2 rounded-lg text-xs bg-zinc-900 border border-zinc-800 text-zinc-100 placeholder-zinc-500 focus:border-amber-500 focus:outline-none transition-colors"
@@ -87,7 +96,7 @@ export const WorkoutFilters: React.FC<WorkoutFiltersProps> = ({
             value={filters.startDate}
             onChange={(e) => onFilterChange('startDate', e.target.value)}
             className="w-full pl-8 pr-2.5 py-2 rounded-lg text-xs bg-zinc-900 border border-zinc-800 text-zinc-200 focus:border-amber-500 focus:outline-none"
-            title="Start Date"
+            title={t('workouts.startDate')}
           />
         </div>
 
@@ -101,7 +110,7 @@ export const WorkoutFilters: React.FC<WorkoutFiltersProps> = ({
             value={filters.endDate}
             onChange={(e) => onFilterChange('endDate', e.target.value)}
             className="w-full pl-8 pr-2.5 py-2 rounded-lg text-xs bg-zinc-900 border border-zinc-800 text-zinc-200 focus:border-amber-500 focus:outline-none"
-            title="End Date"
+            title={t('workouts.endDate')}
           />
         </div>
 
@@ -114,7 +123,7 @@ export const WorkoutFilters: React.FC<WorkoutFiltersProps> = ({
               size="sm"
               onClick={onReset}
               className="text-zinc-400 hover:text-zinc-100 h-8 px-2"
-              title="Reset all filters"
+              title={t('workouts.resetFilters')}
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </Button>
@@ -124,8 +133,8 @@ export const WorkoutFilters: React.FC<WorkoutFiltersProps> = ({
 
       {totalCount !== undefined && (
         <div className="text-[11px] text-zinc-500 flex justify-between items-center pt-1">
-          <span>Matching records: <span className="text-zinc-300 font-semibold">{totalCount}</span></span>
-          {hasActiveFilters && <span className="text-amber-500/80">Filters applied</span>}
+          <span>{t('workouts.matchingRecords', { count: totalCount })}</span>
+          {hasActiveFilters && <span className="text-amber-500/80">{t('workouts.filtersApplied')}</span>}
         </div>
       )}
     </div>

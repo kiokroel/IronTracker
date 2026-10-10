@@ -2,6 +2,7 @@ import React, { useState, memo } from 'react';
 import { BarChart3, TrendingUp } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { formatWeight } from '@/utils/fitness';
+import { useLocaleStore } from '@/store/useLocaleStore';
 
 export interface VolumeDataPoint {
   date: string;
@@ -14,6 +15,7 @@ interface VolumeTrendChartProps {
 }
 
 export const VolumeTrendChart: React.FC<VolumeTrendChartProps> = memo(({ data }) => {
+  const { t } = useLocaleStore();
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
 
@@ -21,9 +23,9 @@ export const VolumeTrendChart: React.FC<VolumeTrendChartProps> = memo(({ data })
     return (
       <Card className="border-zinc-800 bg-zinc-900/60 p-8 text-center">
         <TrendingUp className="mx-auto h-10 w-10 text-zinc-600" />
-        <h3 className="mt-3 text-base font-semibold text-zinc-300">No volume data available</h3>
+        <h3 className="mt-3 text-base font-semibold text-zinc-300">{t('analytics.noVolumeData')}</h3>
         <p className="mt-1 text-sm text-zinc-500">
-          Record workouts to track your training volume and tonnage progression.
+          {t('analytics.noVolumeDesc')}
         </p>
       </Card>
     );
@@ -68,20 +70,20 @@ export const VolumeTrendChart: React.FC<VolumeTrendChartProps> = memo(({ data })
         <div>
           <div className="flex items-center gap-2">
             <BarChart3 className="h-5 w-5 text-amber-500" />
-            <CardTitle>Training Volume Progression</CardTitle>
+            <CardTitle>{t('analytics.trainingVolumeTitle')}</CardTitle>
           </div>
           <CardDescription>
-            Historical tonnage accumulation per workout session
+            {t('analytics.trainingVolumeDesc')}
           </CardDescription>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex items-center gap-4 text-xs font-mono text-zinc-400">
             <div>
-              Total: <span className="text-amber-400 font-bold">{formatWeight(totalVolume)}</span>
+              {t('analytics.total')}: <span className="text-amber-400 font-bold">{formatWeight(totalVolume)}</span>
             </div>
             <div>
-              Avg: <span className="text-zinc-200 font-semibold">{formatWeight(avgVolume)}</span>
+              {t('analytics.avg')}: <span className="text-zinc-200 font-semibold">{formatWeight(avgVolume)}</span>
             </div>
           </div>
 
@@ -94,7 +96,7 @@ export const VolumeTrendChart: React.FC<VolumeTrendChartProps> = memo(({ data })
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              Bars
+              {t('analytics.bars')}
             </button>
             <button
               onClick={() => setChartType('line')}
@@ -104,7 +106,7 @@ export const VolumeTrendChart: React.FC<VolumeTrendChartProps> = memo(({ data })
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              Curve
+              {t('analytics.curve')}
             </button>
           </div>
         </div>
@@ -117,26 +119,20 @@ export const VolumeTrendChart: React.FC<VolumeTrendChartProps> = memo(({ data })
             className="w-full min-w-[500px] h-[260px] overflow-visible select-none"
           >
             <defs>
-              <linearGradient id="volumeAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.35" />
+              <linearGradient id="volumeBarGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#d97706" stopOpacity="0.3" />
+              </linearGradient>
+              <linearGradient id="volumeLineGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.25" />
                 <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.0" />
-              </linearGradient>
-
-              <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.9" />
-                <stop offset="100%" stopColor="#d97706" stopOpacity="0.4" />
-              </linearGradient>
-
-              <linearGradient id="barGradientActive" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#fbbf24" stopOpacity="1" />
-                <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.8" />
               </linearGradient>
             </defs>
 
             {/* Horizontal Grid Lines */}
             {[0, 0.25, 0.5, 0.75, 1].map((pct, i) => {
-              const yVal = height - padding.bottom - pct * chartHeight;
               const val = Math.round(pct * maxVolume);
+              const yVal = getY(val);
               return (
                 <g key={i}>
                   <line
@@ -154,16 +150,16 @@ export const VolumeTrendChart: React.FC<VolumeTrendChartProps> = memo(({ data })
                     textAnchor="end"
                     className="text-[10px] font-mono fill-zinc-500"
                   >
-                    {val >= 1000 ? `${(val / 1000).toFixed(1)}t` : `${val}kg`}
+                    {formatWeight(val)}
                   </text>
                 </g>
               );
             })}
 
-            {/* Line / Area View */}
+            {/* Line / Area Representation */}
             {chartType === 'line' && (
               <>
-                <path d={areaPath} fill="url(#volumeAreaGradient)" />
+                <path d={areaPath} fill="url(#volumeLineGradient)" />
                 <path
                   d={linePath}
                   fill="none"
@@ -175,81 +171,86 @@ export const VolumeTrendChart: React.FC<VolumeTrendChartProps> = memo(({ data })
               </>
             )}
 
-            {/* Data Elements (Bars or Points) */}
+            {/* Bars or Line Points */}
             {data.map((d, idx) => {
               const x = getX(idx);
               const y = getY(d.volume);
+              const barWidth = Math.max(16, Math.min(36, (chartWidth / data.length) * 0.65));
+              const barHeight = height - padding.bottom - y;
               const isHovered = hoveredIndex === idx;
-              const barWidth = Math.min(28, (chartWidth / data.length) * 0.65);
 
+              if (chartType === 'bar') {
+                return (
+                  <g key={idx}>
+                    {/* Visual Bar */}
+                    <rect
+                      x={x - barWidth / 2}
+                      y={y}
+                      width={barWidth}
+                      height={Math.max(2, barHeight)}
+                      rx={4}
+                      fill={isHovered ? '#fbbf24' : 'url(#volumeBarGradient)'}
+                      stroke={isHovered ? '#f59e0b' : 'none'}
+                      strokeWidth={isHovered ? 1.5 : 0}
+                      className="transition-colors pointer-events-none"
+                    />
+
+                    {/* Date label */}
+                    <text
+                      x={x}
+                      y={height - padding.bottom + 18}
+                      textAnchor="middle"
+                      className={`text-[10px] font-mono select-none pointer-events-none transition-colors ${
+                        isHovered ? 'fill-amber-400 font-bold' : 'fill-zinc-500'
+                      }`}
+                    >
+                      {d.date.length > 5 ? d.date.slice(5) : d.date}
+                    </text>
+
+                    {/* Wide Stable Hitbox */}
+                    <rect
+                      x={x - barWidth / 2 - 8}
+                      y={padding.top}
+                      width={barWidth + 16}
+                      height={height - padding.top - padding.bottom}
+                      fill="transparent"
+                      className="cursor-pointer"
+                      onMouseEnter={() => setHoveredIndex(idx)}
+                      onMouseLeave={() => setHoveredIndex(null)}
+                    />
+                  </g>
+                );
+              }
+
+              // Line mode point
               return (
                 <g key={idx}>
-                  {chartType === 'bar' ? (
-                    <>
-                      {/* Visible Bar */}
-                      <rect
-                        x={x - barWidth / 2}
-                        y={y}
-                        width={barWidth}
-                        height={Math.max(4, height - padding.bottom - y)}
-                        rx="4"
-                        fill={isHovered ? 'url(#barGradientActive)' : 'url(#barGradient)'}
-                        pointerEvents="none"
-                      />
-
-                      {/* Wide Bar Hitbox */}
-                      <rect
-                        x={x - Math.max(barWidth, 24) / 2}
-                        y={Math.max(padding.top, y - 10)}
-                        width={Math.max(barWidth, 24)}
-                        height={Math.max(20, height - padding.bottom - Math.max(padding.top, y - 10))}
-                        fill="transparent"
-                        className="cursor-pointer"
-                        onMouseEnter={() => setHoveredIndex(idx)}
-                        onMouseLeave={() => setHoveredIndex(null)}
-                      />
-                    </>
-                  ) : (
-                    <>
-                      {/* Active Point Glow */}
-                      {isHovered && (
-                        <circle
-                          cx={x}
-                          cy={y}
-                          r={10}
-                          fill="none"
-                          stroke="#f59e0b"
-                          strokeWidth="2"
-                          opacity="0.4"
-                          pointerEvents="none"
-                        />
-                      )}
-
-                      {/* Visible Circle */}
-                      <circle
-                        cx={x}
-                        cy={y}
-                        r={isHovered ? 6.5 : 4}
-                        fill={isHovered ? '#fbbf24' : '#f59e0b'}
-                        stroke="#18181b"
-                        strokeWidth={2}
-                        pointerEvents="none"
-                      />
-
-                      {/* Wide Line Hitbox (r=18) */}
-                      <circle
-                        cx={x}
-                        cy={y}
-                        r={18}
-                        fill="transparent"
-                        className="cursor-pointer"
-                        onMouseEnter={() => setHoveredIndex(idx)}
-                        onMouseLeave={() => setHoveredIndex(null)}
-                      />
-                    </>
+                  {/* Active Glow */}
+                  {isHovered && (
+                    <circle
+                      cx={x}
+                      cy={y}
+                      r={9}
+                      fill="none"
+                      stroke="#f59e0b"
+                      strokeWidth="2"
+                      opacity="0.4"
+                      pointerEvents="none"
+                    />
                   )}
 
-                  {/* X Axis Date Label */}
+                  {/* Point */}
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r={isHovered ? 6 : 4}
+                    fill={isHovered ? '#fbbf24' : '#f59e0b'}
+                    stroke="#18181b"
+                    strokeWidth={isHovered ? 2 : 2.5}
+                    pointerEvents="none"
+                  />
+
+                  {/* Date label */}
                   <text
                     x={x}
                     y={height - padding.bottom + 18}
@@ -260,6 +261,17 @@ export const VolumeTrendChart: React.FC<VolumeTrendChartProps> = memo(({ data })
                   >
                     {d.date.length > 5 ? d.date.slice(5) : d.date}
                   </text>
+
+                  {/* Wide Stable Hitbox */}
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r={18}
+                    fill="transparent"
+                    className="cursor-pointer"
+                    onMouseEnter={() => setHoveredIndex(idx)}
+                    onMouseLeave={() => setHoveredIndex(null)}
+                  />
                 </g>
               );
             })}
@@ -269,7 +281,7 @@ export const VolumeTrendChart: React.FC<VolumeTrendChartProps> = memo(({ data })
               const pt = data[hoveredIndex];
               const px = getX(hoveredIndex);
               const py = getY(pt.volume);
-              const tooltipWidth = 200;
+              const tooltipWidth = 210;
               const tooltipHeight = 56;
 
               let tx = px - tooltipWidth / 2;

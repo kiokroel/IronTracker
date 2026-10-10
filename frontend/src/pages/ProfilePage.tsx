@@ -14,6 +14,7 @@ import {
   Check,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useLocaleStore } from '@/store/useLocaleStore';
 import { authApi } from '@/api/auth';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -22,6 +23,7 @@ import { Badge } from '@/components/ui/Badge';
 
 export const ProfilePage: React.FC = () => {
   const { user, setUser, logout } = useAuthStore();
+  const { t, locale } = useLocaleStore();
   const navigate = useNavigate();
 
   const [username, setUsername] = useState(user?.username || '');
@@ -52,7 +54,7 @@ export const ProfilePage: React.FC = () => {
     setProfileError(null);
 
     if (username.trim().length < 2) {
-      setProfileError('Имя атлета должно содержать минимум 2 символа.');
+      setProfileError(t('auth.usernameMinLength'));
       return;
     }
 
@@ -60,13 +62,13 @@ export const ProfilePage: React.FC = () => {
       setIsUpdatingProfile(true);
       const updatedUser = await authApi.updateMe({ username: username.trim() });
       setUser(updatedUser);
-      setProfileSuccess('Профиль успешно обновлен!');
+      setProfileSuccess(t('common.success'));
       setTimeout(() => setProfileSuccess(null), 4000);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setProfileError(err.message);
       } else {
-        setProfileError('Не удалось обновить профиль.');
+        setProfileError(t('common.error'));
       }
     } finally {
       setIsUpdatingProfile(false);
@@ -79,19 +81,19 @@ export const ProfilePage: React.FC = () => {
     setPasswordError(null);
 
     if (newPassword.length < 6) {
-      setPasswordError('Пароль должен содержать минимум 6 символов.');
+      setPasswordError(t('auth.passwordMinLength'));
       return;
     }
 
     if (newPassword !== confirmNewPassword) {
-      setPasswordError('Пароли не совпадают.');
+      setPasswordError(t('auth.passwordsMismatch'));
       return;
     }
 
     try {
       setIsUpdatingPassword(true);
       await authApi.updateMe({ password: newPassword });
-      setPasswordSuccess('Пароль успешно изменен!');
+      setPasswordSuccess(t('common.success'));
       setNewPassword('');
       setConfirmNewPassword('');
       setTimeout(() => setPasswordSuccess(null), 4000);
@@ -99,7 +101,7 @@ export const ProfilePage: React.FC = () => {
       if (err instanceof Error) {
         setPasswordError(err.message);
       } else {
-        setPasswordError('Не удалось изменить пароль.');
+        setPasswordError(t('common.error'));
       }
     } finally {
       setIsUpdatingPassword(false);
@@ -107,10 +109,8 @@ export const ProfilePage: React.FC = () => {
   };
 
   const handleLogout = () => {
-    if (window.confirm('Вы действительно хотите выйти из системы?')) {
-      logout();
-      navigate('/login');
-    }
+    logout();
+    navigate('/login');
   };
 
   const getInitials = (name?: string, email?: string) => {
@@ -124,9 +124,9 @@ export const ProfilePage: React.FC = () => {
   };
 
   const formatDate = (isoString?: string) => {
-    if (!isoString) return 'Не указана';
+    if (!isoString) return '—';
     try {
-      return new Date(isoString).toLocaleDateString('ru-RU', {
+      return new Date(isoString).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
@@ -141,10 +141,10 @@ export const ProfilePage: React.FC = () => {
       {/* Page Title */}
       <div>
         <h1 className="text-2xl font-black tracking-wider text-white uppercase">
-          Профиль <span className="text-amber-500">Атлета</span>
+          {t('profile.title')}
         </h1>
         <p className="mt-1 text-sm text-zinc-400">
-          Управление учетными данными спортсмена и безопасность аккаунта
+          {t('profile.subtitle')}
         </p>
       </div>
 
@@ -161,8 +161,8 @@ export const ProfilePage: React.FC = () => {
             {/* Info details */}
             <div className="space-y-3 flex-1 text-center sm:text-left">
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
-                <h2 className="text-xl font-bold text-white">{user?.username || 'Спортсмен'}</h2>
-                <Badge variant="accent">Активный атлет</Badge>
+                <h2 className="text-xl font-bold text-white">{user?.username || 'Athlete'}</h2>
+                <Badge variant="accent">{t('profile.athleteRole')}</Badge>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-zinc-400">
@@ -172,7 +172,7 @@ export const ProfilePage: React.FC = () => {
                 </div>
                 <div className="flex items-center justify-center sm:justify-start gap-2">
                   <Calendar className="w-4 h-4 text-zinc-500 shrink-0" />
-                  <span>Регистрация: {formatDate(user?.created_at)}</span>
+                  <span>{t('profile.joined')}: {formatDate(user?.created_at)}</span>
                 </div>
               </div>
 
@@ -183,7 +183,7 @@ export const ProfilePage: React.FC = () => {
                   type="button"
                   onClick={handleCopyId}
                   className="p-1 hover:text-amber-400 transition-colors rounded"
-                  title="Скопировать ID"
+                  title="Copy ID"
                 >
                   {copiedId ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
@@ -199,7 +199,7 @@ export const ProfilePage: React.FC = () => {
                 className="text-zinc-400 hover:text-red-400 hover:bg-red-500/10 gap-1.5"
               >
                 <LogOut className="w-4 h-4" />
-                <span>Выйти</span>
+                <span>{t('nav.logout')}</span>
               </Button>
             </div>
           </div>
@@ -213,10 +213,10 @@ export const ProfilePage: React.FC = () => {
           <CardHeader>
             <div className="flex items-center gap-2 text-amber-500 font-semibold text-sm">
               <UserIcon className="w-4 h-4" />
-              <span>Данные профиля</span>
+              <span>{t('profile.title')}</span>
             </div>
-            <CardTitle className="text-lg">Основная информация</CardTitle>
-            <CardDescription>Изменение отображаемого имени спортсмена в рейтингах</CardDescription>
+            <CardTitle className="text-lg">{t('profile.username')}</CardTitle>
+            <CardDescription>{t('profile.subtitle')}</CardDescription>
           </CardHeader>
 
           <form onSubmit={handleUpdateProfile}>
@@ -236,24 +236,23 @@ export const ProfilePage: React.FC = () => {
               )}
 
               <Input
-                label="Имя атлета (Username)"
+                label={t('profile.username')}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Новое имя"
+                placeholder="Username"
                 required
               />
 
               <Input
-                label="Email"
+                label={t('profile.email')}
                 value={user?.email || ''}
                 disabled
-                helperText="Email привязан к аккаунту и не подлежит изменению."
               />
 
               <div className="pt-2">
                 <Button type="submit" size="md" isLoading={isUpdatingProfile} className="gap-2">
                   <Save className="w-4 h-4" />
-                  <span>Сохранить изменения</span>
+                  <span>{t('common.save')}</span>
                 </Button>
               </div>
             </CardContent>
@@ -265,10 +264,10 @@ export const ProfilePage: React.FC = () => {
           <CardHeader>
             <div className="flex items-center gap-2 text-amber-500 font-semibold text-sm">
               <Shield className="w-4 h-4" />
-              <span>Безопасность</span>
+              <span>{t('common.ironProtocol')}</span>
             </div>
-            <CardTitle className="text-lg">Смена пароля</CardTitle>
-            <CardDescription>Обновление пароля доступа к тренировочной платформе</CardDescription>
+            <CardTitle className="text-lg">{t('auth.password')}</CardTitle>
+            <CardDescription>{t('auth.loginDesc')}</CardDescription>
           </CardHeader>
 
           <form onSubmit={handleUpdatePassword}>
@@ -288,20 +287,20 @@ export const ProfilePage: React.FC = () => {
               )}
 
               <Input
-                label="Новый пароль"
+                label={t('auth.password')}
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Минимум 6 символов"
+                placeholder="••••••••"
                 required
               />
 
               <Input
-                label="Подтверждение нового пароля"
+                label={t('auth.confirmPassword')}
                 type="password"
                 value={confirmNewPassword}
                 onChange={(e) => setConfirmNewPassword(e.target.value)}
-                placeholder="Повторите новый пароль"
+                placeholder="••••••••"
                 required
               />
 
@@ -314,7 +313,7 @@ export const ProfilePage: React.FC = () => {
                   className="gap-2 text-zinc-100 hover:text-white"
                 >
                   <Key className="w-4 h-4" />
-                  <span>Обновить пароль</span>
+                  <span>{t('common.save')}</span>
                 </Button>
               </div>
             </CardContent>

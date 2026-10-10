@@ -23,3 +23,15 @@ Object.defineProperty(globalThis, 'localStorage', {
   writable: true,
   configurable: true,
 });
+
+const documentMock = {
+  documentElement: {
+    lang: 'ru',
+  },
+};
+
+Object.defineProperty(globalThis, 'document', {
+  value: documentMock,
+  writable: true,
+  configurable: true,
+});

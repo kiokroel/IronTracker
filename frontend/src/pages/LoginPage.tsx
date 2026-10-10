@@ -2,14 +2,17 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Dumbbell, AlertCircle, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useLocaleStore } from '@/store/useLocaleStore';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/Card';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, isLoading, error: authError } = useAuthStore();
+  const { t } = useLocaleStore();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,7 +26,7 @@ export const LoginPage: React.FC = () => {
     setFormError(null);
 
     if (!email.trim() || !password) {
-      setFormError('Пожалуйста, заполните email и пароль.');
+      setFormError(t('auth.fillRequired'));
       return;
     }
 
@@ -35,11 +38,15 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-
   const displayedError = formError || authError;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4 sm:p-6">
+    <div className="relative min-h-screen flex items-center justify-center bg-zinc-950 p-4 sm:p-6">
+      {/* Top right language switch */}
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+        <LanguageSwitcher variant="pill" />
+      </div>
+
       <div className="w-full max-w-md space-y-6">
         {/* Brand Header */}
         <div className="text-center space-y-2">
@@ -49,14 +56,14 @@ export const LoginPage: React.FC = () => {
           <h1 className="text-2xl sm:text-3xl font-black tracking-wider text-white">
             IRON<span className="text-amber-500">TRACKER</span>
           </h1>
-          <p className="text-sm text-zinc-400">Вход в систему учета тренировочной телеметрии</p>
+          <p className="text-sm text-zinc-400">{t('auth.loginHeader')}</p>
         </div>
 
         {/* Login Card */}
         <Card className="border-zinc-800 bg-zinc-900/90 shadow-2xl">
           <CardHeader>
-            <CardTitle>Вход в аккаунт</CardTitle>
-            <CardDescription>Введите учетные данные для доступа к платформе</CardDescription>
+            <CardTitle>{t('auth.loginTitle')}</CardTitle>
+            <CardDescription>{t('auth.loginDesc')}</CardDescription>
           </CardHeader>
 
           <form onSubmit={handleSubmit}>
@@ -69,7 +76,7 @@ export const LoginPage: React.FC = () => {
               )}
 
               <Input
-                label="Email"
+                label={t('auth.email')}
                 type="email"
                 placeholder="athlete@example.com"
                 value={email}
@@ -79,7 +86,7 @@ export const LoginPage: React.FC = () => {
               />
 
               <Input
-                label="Пароль"
+                label={t('auth.password')}
                 type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
                 value={password}
@@ -92,7 +99,7 @@ export const LoginPage: React.FC = () => {
                     onClick={() => setShowPassword(!showPassword)}
                     className="text-zinc-500 hover:text-zinc-300 focus:outline-none transition-colors"
                     tabIndex={-1}
-                    aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                    aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -102,17 +109,17 @@ export const LoginPage: React.FC = () => {
 
             <CardFooter className="flex flex-col gap-3">
               <Button type="submit" className="w-full" size="lg" isLoading={isLoading}>
-                <span>Войти</span>
+                <span>{t('auth.loginButton')}</span>
                 <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
 
               <p className="text-center text-xs text-zinc-400">
-                Новый атлет?{' '}
+                {t('auth.newAthlete')}{' '}
                 <Link
                   to="/register"
                   className="font-semibold text-amber-400 hover:text-amber-300 transition-colors"
                 >
-                  Зарегистрироваться
+                  {t('auth.registerLink')}
                 </Link>
               </p>
             </CardFooter>

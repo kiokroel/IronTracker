@@ -4,6 +4,7 @@ import { LeaderboardEntry } from '@/types/leaderboard';
 import { Badge } from '@/components/ui/Badge';
 import { Loader } from '@/components/ui/Loader';
 import { formatWeight } from '@/utils/fitness';
+import { useLocaleStore } from '@/store/useLocaleStore';
 
 interface LeaderboardTableProps {
   entries: LeaderboardEntry[];
@@ -20,6 +21,7 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
   limit,
   onLimitChange,
 }) => {
+  const { t } = useLocaleStore();
   const topScore = entries.length > 0 ? entries[0].score : 0;
 
   const renderRankBadge = (rank: number) => {
@@ -56,11 +58,11 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
       {/* Header controls */}
       <div className="flex items-center justify-between">
         <span className="text-sm text-zinc-400">
-          Showing <span className="font-semibold text-zinc-200">{entries.length}</span> top athletes
+          {t('leaderboard.showingAthletes', { count: entries.length })}
         </span>
 
         <div className="flex items-center gap-2 text-sm text-zinc-400">
-          <span>Show:</span>
+          <span>{t('leaderboard.show')}</span>
           {[10, 25, 50].map((size) => (
             <button
               key={size}
@@ -82,14 +84,14 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
         {isLoading && entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader size="lg" />
-            <p className="mt-4 text-sm text-zinc-400">Loading standings from Redis ZSET...</p>
+            <p className="mt-4 text-sm text-zinc-400">{t('leaderboard.loadingStandings')}</p>
           </div>
         ) : entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Trophy className="h-12 w-12 text-zinc-600" />
-            <h3 className="mt-4 text-base font-semibold text-zinc-300">No athletes ranked yet</h3>
+            <h3 className="mt-4 text-base font-semibold text-zinc-300">{t('leaderboard.noAthletesRanked')}</h3>
             <p className="mt-1 max-w-sm text-sm text-zinc-500">
-              Be the first to record a workout and claim the top spot on the leaderboard!
+              {t('leaderboard.beTheFirst')}
             </p>
           </div>
         ) : (
@@ -97,10 +99,10 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
             <table className="w-full text-left text-sm">
               <thead className="bg-zinc-800/60 text-xs uppercase tracking-wider text-zinc-400 border-b border-zinc-800">
                 <tr>
-                  <th scope="col" className="w-16 px-6 py-3.5 text-center">Rank</th>
-                  <th scope="col" className="px-6 py-3.5">Athlete</th>
-                  <th scope="col" className="px-6 py-3.5 text-right">Volume Progress</th>
-                  <th scope="col" className="w-40 px-6 py-3.5 text-right">Total Tonnage</th>
+                  <th scope="col" className="w-16 px-6 py-3.5 text-center">{t('leaderboard.rankCol')}</th>
+                  <th scope="col" className="px-6 py-3.5">{t('leaderboard.athleteCol')}</th>
+                  <th scope="col" className="px-6 py-3.5 text-right">{t('leaderboard.volumeProgressCol')}</th>
+                  <th scope="col" className="w-40 px-6 py-3.5 text-right">{t('leaderboard.totalTonnageCol')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/60">
@@ -142,7 +144,7 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
                               </span>
                               {isCurrent && (
                                 <Badge variant="accent" size="sm">
-                                  You
+                                  {t('leaderboard.you')}
                                 </Badge>
                               )}
                             </div>
