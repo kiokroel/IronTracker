@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Dumbbell, Trophy, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Dumbbell, Trophy, User, ShieldCheck } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
 interface NavItem {
@@ -13,6 +13,7 @@ const navItems: NavItem[] = [
   { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
   { label: 'Workouts', to: '/workouts', icon: Dumbbell },
   { label: 'Leaderboard', to: '/leaderboard', icon: Trophy },
+  { label: 'Profile', to: '/profile', icon: User },
 ];
 
 export const Sidebar: React.FC = () => {

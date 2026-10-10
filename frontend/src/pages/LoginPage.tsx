@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Dumbbell, AlertCircle, ArrowRight } from 'lucide-react';
+import { Dumbbell, AlertCircle, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -13,6 +13,7 @@ export const LoginPage: React.FC = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
@@ -21,8 +22,8 @@ export const LoginPage: React.FC = () => {
     e.preventDefault();
     setFormError(null);
 
-    if (!email.trim() || !password.trim()) {
-      setFormError('Please provide both email and password.');
+    if (!email.trim() || !password) {
+      setFormError('Пожалуйста, заполните email и пароль.');
       return;
     }
 
@@ -30,7 +31,7 @@ export const LoginPage: React.FC = () => {
       await login({ email: email.trim(), password });
       navigate(from, { replace: true });
     } catch {
-      // Error handled and set in store
+      // Error is set in store and displayed below
     }
   };
 
@@ -53,14 +54,14 @@ export const LoginPage: React.FC = () => {
           <h1 className="text-2xl sm:text-3xl font-black tracking-wider text-white">
             IRON<span className="text-amber-500">TRACKER</span>
           </h1>
-          <p className="text-sm text-zinc-400">Sign in to access your workout telemetry</p>
+          <p className="text-sm text-zinc-400">Вход в систему учета тренировочной телеметрии</p>
         </div>
 
         {/* Login Card */}
         <Card className="border-zinc-800 bg-zinc-900/90 shadow-2xl">
           <CardHeader>
-            <CardTitle>Athlete Login</CardTitle>
-            <CardDescription>Enter your credentials to continue</CardDescription>
+            <CardTitle>Вход в аккаунт</CardTitle>
+            <CardDescription>Введите учетные данные для доступа к платформе</CardDescription>
           </CardHeader>
 
           <form onSubmit={handleSubmit}>
@@ -83,13 +84,24 @@ export const LoginPage: React.FC = () => {
               />
 
               <Input
-                label="Password"
-                type="password"
+                label="Пароль"
+                type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
                 required
+                rightElement={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-zinc-500 hover:text-zinc-300 focus:outline-none transition-colors"
+                    tabIndex={-1}
+                    aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                }
               />
 
               <div className="flex justify-end">
@@ -98,24 +110,24 @@ export const LoginPage: React.FC = () => {
                   onClick={fillDemo}
                   className="text-xs text-amber-400 hover:text-amber-300 underline underline-offset-2 transition-colors"
                 >
-                  Fill demo credentials
+                  Заполнить демо-данные
                 </button>
               </div>
             </CardContent>
 
             <CardFooter className="flex flex-col gap-3">
               <Button type="submit" className="w-full" size="lg" isLoading={isLoading}>
-                <span>Sign In</span>
+                <span>Войти</span>
                 <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
 
               <p className="text-center text-xs text-zinc-400">
-                New athlete?{' '}
+                Новый атлет?{' '}
                 <Link
                   to="/register"
                   className="font-semibold text-amber-400 hover:text-amber-300 transition-colors"
                 >
-                  Create an account
+                  Зарегистрироваться
                 </Link>
               </p>
             </CardFooter>

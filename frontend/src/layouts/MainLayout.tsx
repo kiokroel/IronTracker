@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, Dumbbell, Trophy } from 'lucide-react';
+import { LayoutDashboard, Dumbbell, Trophy, User } from 'lucide-react';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 import { cn } from '@/utils/cn';
@@ -57,6 +57,18 @@ export const MainLayout: React.FC = () => {
         >
           <Trophy className="w-5 h-5" />
           <span>Leaderboard</span>
+        </NavLink>
+        <NavLink
+          to="/profile"
+          className={({ isActive }) =>
+            cn(
+              'flex flex-col items-center gap-1 text-xs font-semibold py-1 px-3 rounded-lg transition-colors',
+              isActive ? 'text-amber-400' : 'text-zinc-400 hover:text-zinc-200'
+            )
+          }
+        >
+          <User className="w-5 h-5" />
+          <span>Profile</span>
         </NavLink>
       </nav>
 

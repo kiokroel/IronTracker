@@ -85,8 +85,8 @@ async def test_e2e_step1_caddy_gateway_health() -> None:
             assert data.get("status") == "ok"
             assert data.get("service") == "caddy-gateway"
 
-            # Check 404 fallback routing
-            fallback_res = await client.get("/non-existent-endpoint-404")
+            # Check 404 fallback routing for unmatched API routes
+            fallback_res = await client.get("/api/non-existent-endpoint-404")
             assert fallback_res.status_code == 404
             assert fallback_res.json().get("detail") == "Not Found"
         except httpx.ConnectError:

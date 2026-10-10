@@ -150,6 +150,8 @@ services:
       DB_ECHO: "false"
       DB_POOL_SIZE: 10
       DB_MAX_OVERFLOW: 20
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-irontracker_super_secure_jwt_secret_key_2026_dev}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
     depends_on:
       postgres:
         condition: service_healthy
@@ -229,8 +231,8 @@ services:
       REDIS_PORT: 6379
       REDIS_DB: 0
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      KAFKA_CONSUMER_GROUP: leaderboard-service-group
-      KAFKA_WORKOUT_TOPIC: workout.completed
+      KAFKA_CONSUMER_GROUP: leaderboard-service-group-v2
+      KAFKA_WORKOUT_TOPIC: workout.events
       LEADERBOARD_TONNAGE_KEY: leaderboard:tonnage
     depends_on:
       redis:

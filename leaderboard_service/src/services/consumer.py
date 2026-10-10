@@ -16,7 +16,7 @@ from leaderboard_service.src.services.tonnage import (
     calculate_workout_tonnage,
     update_user_tonnage,
 )
-from shared.contracts.src.events import WorkoutCompletedEvent
+from shared.contracts.src.events import WorkoutCompletedEvent, WorkoutCreatedEvent
 
 logger = logging.getLogger(__name__)
 
@@ -94,16 +94,26 @@ class WorkoutEventConsumer:
         Returns the updated user tonnage, or None if message was invalid or ignored.
         """
         raw_value = getattr(message, "value", message)
+        event: WorkoutCompletedEvent | WorkoutCreatedEvent
 
         try:
             if isinstance(raw_value, (bytes, bytearray)):
                 payload_str = raw_value.decode("utf-8")
-                event = WorkoutCompletedEvent.model_validate_json(payload_str)
+                try:
+                    event = WorkoutCompletedEvent.model_validate_json(payload_str)
+                except ValidationError:
+                    event = WorkoutCreatedEvent.model_validate_json(payload_str)
             elif isinstance(raw_value, str):
-                event = WorkoutCompletedEvent.model_validate_json(raw_value)
+                try:
+                    event = WorkoutCompletedEvent.model_validate_json(raw_value)
+                except ValidationError:
+                    event = WorkoutCreatedEvent.model_validate_json(raw_value)
             elif isinstance(raw_value, dict):
-                event = WorkoutCompletedEvent.model_validate(raw_value)
-            elif isinstance(raw_value, WorkoutCompletedEvent):
+                try:
+                    event = WorkoutCompletedEvent.model_validate(raw_value)
+                except ValidationError:
+                    event = WorkoutCreatedEvent.model_validate(raw_value)
+            elif isinstance(raw_value, (WorkoutCompletedEvent, WorkoutCreatedEvent)):
                 event = raw_value
             else:
                 logger.error("Unsupported message payload type: %s", type(raw_value))
@@ -115,7 +125,7 @@ class WorkoutEventConsumer:
             logger.error("Unexpected error parsing workout event payload: %s", exc)
             return None
 
-        if event.event_type != "workout.completed":
+        if event.event_type not in ("workout.completed", "workout.created"):
             logger.warning("Ignoring event with unexpected event_type: %s", event.event_type)
             return None
 

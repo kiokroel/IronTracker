@@ -454,13 +454,13 @@ async def test_process_message_invalid_schema_missing_fields() -> None:
 
 @pytest.mark.asyncio
 async def test_process_message_unexpected_event_type() -> None:
-    """Verify events other than 'workout.completed' are ignored without error."""
+    """Verify events with unexpected event_type are ignored without error."""
     mock_redis = AsyncMock(spec=Redis)
     consumer = WorkoutEventConsumer(redis=mock_redis)
 
     payload = {
         "event_id": str(uuid4()),
-        "event_type": "workout.created",
+        "event_type": "workout.unknown",
         "workout_id": str(uuid4()),
         "user_id": str(uuid4()),
         "created_at": datetime.now(UTC).isoformat(),
@@ -475,6 +475,37 @@ async def test_process_message_unexpected_event_type() -> None:
     result = await consumer.process_message(payload)
     assert result is None
     mock_redis.zincrby.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_process_message_workout_created_event() -> None:
+    """Verify workout.created events are processed and update user score in Redis."""
+    mock_redis = AsyncMock(spec=Redis)
+    mock_redis.zincrby = AsyncMock(return_value=3000.0)
+    consumer = WorkoutEventConsumer(redis=mock_redis)
+
+    user_id = uuid4()
+    workout_id = uuid4()
+    payload = {
+        "event_id": str(uuid4()),
+        "event_type": "workout.created",
+        "workout_id": str(workout_id),
+        "user_id": str(user_id),
+        "created_at": datetime.now(UTC).isoformat(),
+        "metrics": {
+            "exercise_type": "bench_press",
+            "weight": 100.0,
+            "sets": 3,
+            "reps": 10,
+        },
+    }
+    result = await consumer.process_message(payload)
+    assert result == 3000.0
+    mock_redis.zincrby.assert_awaited_once_with(
+        name="leaderboard:tonnage",
+        amount=3000.0,
+        value=str(user_id),
+    )
 
 
 @pytest.mark.asyncio
@@ -754,12 +785,12 @@ def test_kafka_settings_defaults() -> None:
     kafka_cfg = KafkaSettings()
     assert kafka_cfg.kafka_bootstrap_servers == "localhost:9092"
     assert kafka_cfg.kafka_consumer_group == "leaderboard-service-group"
-    assert kafka_cfg.kafka_workout_topic == "workout.completed"
+    assert kafka_cfg.kafka_workout_topic == "workout.events"
     assert kafka_cfg.enable_kafka_consumer is False
 
     assert kafka_cfg.KAFKA_BOOTSTRAP_SERVERS == "localhost:9092"
     assert kafka_cfg.KAFKA_CONSUMER_GROUP == "leaderboard-service-group"
-    assert kafka_cfg.KAFKA_WORKOUT_TOPIC == "workout.completed"
+    assert kafka_cfg.KAFKA_WORKOUT_TOPIC == "workout.events"
     assert kafka_cfg.ENABLE_KAFKA_CONSUMER is False
 
 

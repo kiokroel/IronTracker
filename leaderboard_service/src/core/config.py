@@ -95,9 +95,9 @@ class KafkaSettings(BaseSettings):
         description="Kafka consumer group ID",
     )
     kafka_workout_topic: str = Field(
-        default="workout.completed",
+        default="workout.events",
         validation_alias=AliasChoices("KAFKA_WORKOUT_TOPIC", "kafka_workout_topic"),
-        description="Kafka topic for completed workout events",
+        description="Kafka topic for workout events",
     )
     enable_kafka_consumer: bool = Field(
         default=False,
@@ -189,9 +189,9 @@ class Settings(BaseSettings):
         description="Kafka consumer group ID",
     )
     kafka_workout_topic: str = Field(
-        default="workout.completed",
+        default="workout.events",
         validation_alias=AliasChoices("KAFKA_WORKOUT_TOPIC", "kafka_workout_topic"),
-        description="Kafka topic for completed workout events",
+        description="Kafka topic for workout events",
     )
     leaderboard_tonnage_key: str = Field(
         default="leaderboard:tonnage",
