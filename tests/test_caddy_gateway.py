@@ -72,9 +72,13 @@ def test_caddyfile_structure_and_directives() -> None:
         "Must proxy to users-service:8001 with environment variable support"
     )
 
-    # Fallback 404 handle
-    assert "handle {" in content
+    # Fallback 404 handle for unmatched API routes
+    assert "handle /api/* {" in content, "Must contain /api/* fallback handle block"
     assert 'respond "{\\"detail\\":\\"Not Found\\"}" 404' in content
+
+    # Frontend SPA reverse proxy handle
+    assert "handle {" in content, "Must contain default handle block for frontend SPA fallback"
+    assert "frontend:80" in content, "Must proxy unknown non-API routes to frontend:80"
 
 
 # ==============================================================================
@@ -165,14 +169,26 @@ class SimulatedGatewayClient:
                 transport=self.users_transport, base_url="http://gateway"
             ) as client:
                 return await client.get(path, **kwargs)
-        else:
-            # Fallback 404 from Caddy
+        elif path.startswith("/api/"):
+            # Fallback 404 for unmatched API routes from Caddy
             from httpx import Response
 
             return Response(
                 status_code=404,
                 headers={"Content-Type": "application/json"},
                 json={"detail": "Not Found"},
+            )
+        else:
+            # Reverse proxy to Frontend Application (SPA fallback)
+            from httpx import Response
+
+            return Response(
+                status_code=200,
+                headers={"Content-Type": "text/html; charset=utf-8"},
+                text=(
+                    '<!DOCTYPE html><html lang="en"><head><title>IronTracker</title></head>'
+                    '<body><div id="root"></div></body></html>'
+                ),
             )
 
 
@@ -256,3 +272,50 @@ async def test_gateway_routes_to_users_service() -> None:
     gateway = SimulatedGatewayClient()
     response = await gateway.get("/api/v1/users/me")
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_gateway_routes_to_frontend_spa() -> None:
+    """Verify that requests to non-API paths (SPA routes) are forwarded to Frontend."""
+    gateway = SimulatedGatewayClient()
+
+    # Root path
+    root_response = await gateway.get("/")
+    assert root_response.status_code == 200
+    assert "text/html" in root_response.headers.get("content-type", "")
+    assert '<div id="root">' in root_response.text
+
+    # SPA client-side routes
+    for spa_route in [
+        "/workouts",
+        "/leaderboard",
+        "/profile",
+        "/login",
+        "/register",
+        "/analytics",
+    ]:
+        response = await gateway.get(spa_route)
+        assert response.status_code == 200
+        assert "text/html" in response.headers.get("content-type", "")
+        assert '<div id="root">' in response.text
+
+
+def test_frontend_caddyfile_configuration() -> None:
+    """Verify frontend/Caddyfile configuration for SPA routing and healthcheck."""
+    frontend_caddyfile = REPO_ROOT / "frontend" / "Caddyfile"
+    assert frontend_caddyfile.exists(), "frontend/Caddyfile must exist"
+    content = frontend_caddyfile.read_text(encoding="utf-8")
+
+    assert ":80 {" in content, "Must listen on port 80"
+    assert "root * /usr/share/caddy" in content, "Must serve from /usr/share/caddy"
+    assert "handle /health {" in content, "Must contain /health endpoint"
+    assert 'respond "OK" 200' in content or "respond 200" in content, (
+        "Health endpoint must return 200"
+    )
+    assert "try_files {path} /index.html" in content, "Must implement SPA fallback routing"
+    assert "file_server" in content, "Must enable file server"
+    assert "X-Content-Type-Options nosniff" in content, "Must configure X-Content-Type-Options"
+    assert "X-Frame-Options DENY" in content, "Must configure X-Frame-Options"
+    assert "Referrer-Policy strict-origin-when-cross-origin" in content, (
+        "Must configure Referrer-Policy"
+    )
