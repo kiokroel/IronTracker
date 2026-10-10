@@ -397,3 +397,39 @@ def test_frontend_dockerfile_multistage_and_configuration() -> None:
     # Healthcheck
     assert "HEALTHCHECK" in content, "Must define container HEALTHCHECK"
     assert "wget" in content and "/health" in content, "HEALTHCHECK must probe /health"
+
+
+def test_microservices_port_isolation_in_docker_compose(compose_config: dict[str, Any]) -> None:
+    """Verify that backend microservices and frontend do not expose host ports."""
+    services = compose_config.get("services", {})
+    isolated_services = [
+        "workout-service",
+        "users-service",
+        "leaderboard-service",
+        "frontend",
+        "workout-outbox-processor",
+        "leaderboard-consumer",
+        "analytics-worker",
+        "notification-worker",
+    ]
+
+    for svc in isolated_services:
+        svc_config = services.get(svc, {})
+        assert "ports" not in svc_config, (
+            f"Service '{svc}' must not have 'ports' mapped in docker-compose.yml"
+        )
+
+
+def test_docker_compose_override_example_file() -> None:
+    """Verify that docker-compose.override.yml.example exists and contains valid yaml."""
+    override_file = PROJECT_ROOT / "docker-compose.override.yml.example"
+    assert override_file.is_file(), "docker-compose.override.yml.example must exist"
+    content = override_file.read_text(encoding="utf-8")
+    data = yaml.safe_load(content)
+    assert isinstance(data, dict), "override example must be valid YAML"
+    services = data.get("services", {})
+    assert "workout-service" in services
+    assert "users-service" in services
+    assert "leaderboard-service" in services
+    assert "frontend" in services
+

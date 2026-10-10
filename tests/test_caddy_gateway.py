@@ -319,3 +319,56 @@ def test_frontend_caddyfile_configuration() -> None:
     assert "Referrer-Policy strict-origin-when-cross-origin" in content, (
         "Must configure Referrer-Policy"
     )
+
+
+@pytest.mark.asyncio
+async def test_gateway_proxies_docs_and_openapi_endpoints() -> None:
+    """Verify that Caddy Gateway routes Swagger UI and OpenAPI schema for all microservices."""
+    gateway = SimulatedGatewayClient()
+
+    docs_endpoints = [
+        ("/api/v1/workouts/docs", "swagger"),
+        ("/api/v1/workouts/openapi.json", "openapi"),
+        ("/api/v1/users/docs", "swagger"),
+        ("/api/v1/users/openapi.json", "openapi"),
+        ("/api/v1/leaderboard/docs", "swagger"),
+        ("/api/v1/leaderboard/openapi.json", "openapi"),
+    ]
+
+    for path, expected_token in docs_endpoints:
+        response = await gateway.get(path)
+        assert response.status_code == 200, f"Expected 200 for {path}, got {response.status_code}"
+        assert expected_token in response.text.lower(), (
+            f"Expected '{expected_token}' in response from {path}"
+        )
+
+
+def test_docker_compose_microservices_network_isolation() -> None:
+    """Verify that microservices have no published ports in docker-compose.yml except Caddy."""
+    assert DOCKER_COMPOSE_PATH.exists(), "docker-compose.yml must exist"
+    compose_data: dict[str, Any] = yaml.safe_load(DOCKER_COMPOSE_PATH.read_text(encoding="utf-8"))
+    services = compose_data.get("services", {})
+
+    isolated_services = [
+        "workout-service",
+        "users-service",
+        "leaderboard-service",
+        "frontend",
+        "workout-outbox-processor",
+        "leaderboard-consumer",
+        "analytics-worker",
+        "notification-worker",
+    ]
+
+    for svc_name in isolated_services:
+        svc_def = services.get(svc_name, {})
+        assert "ports" not in svc_def, (
+            f"Service '{svc_name}' must NOT expose public ports in docker-compose.yml"
+        )
+
+    # Caddy gateway is the single public ingress
+    caddy_svc = services.get("caddy", {})
+    assert "ports" in caddy_svc, "Caddy gateway must publish ingress port"
+    caddy_ports = [str(p) for p in caddy_svc.get("ports", [])]
+    assert any("80" in p for p in caddy_ports), "Caddy must expose port 80"
+

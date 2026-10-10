@@ -1,0 +1,30 @@
+# ==============================================================================
+# IronTracker Docker Compose - Local Development Override Example
+# ==============================================================================
+# Use this file to expose individual microservice ports directly on the host
+# machine for local debugging, profiling, or direct Swagger UI inspection.
+#
+# Usage:
+#   Copy this file to `docker-compose.override.yml`:
+#   cp docker-compose.override.yml.example docker-compose.override.yml
+#
+# Docker Compose automatically merges `docker-compose.override.yml` with
+# `docker-compose.yml` when running `docker compose up`.
+# ==============================================================================
+
+services:
+  workout-service:
+    ports:
+      - "${WORKOUT_SERVICE_PORT:-8000}:8000"
+
+  users-service:
+    ports:
+      - "${USERS_PORT:-8001}:8001"
+
+  leaderboard-service:
+    ports:
+      - "${LEADERBOARD_SERVICE_PORT:-8002}:8002"
+
+  frontend:
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"

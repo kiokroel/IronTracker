@@ -4,6 +4,8 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from workout_service.src.controllers.workout import WorkoutController
@@ -55,6 +57,23 @@ async def list_workouts(
     else:
         workouts = await controller.get_all_workouts(skip=skip, limit=limit)
     return [WorkoutResponse.model_validate(w) for w in workouts]
+
+
+@router.get("/docs", include_in_schema=False, response_class=HTMLResponse)
+async def get_workout_gateway_docs() -> HTMLResponse:
+    """Swagger UI accessible through Caddy API Gateway."""
+    return get_swagger_ui_html(
+        openapi_url="/api/v1/workouts/openapi.json",
+        title="IronTracker Workout Service - Swagger UI",
+    )
+
+
+@router.get("/openapi.json", include_in_schema=False)
+async def get_workout_gateway_openapi() -> JSONResponse:
+    """OpenAPI JSON schema accessible through Caddy API Gateway."""
+    from workout_service.src.main import app
+
+    return JSONResponse(app.openapi())
 
 
 @router.get("/{workout_id}", response_model=WorkoutResponse)

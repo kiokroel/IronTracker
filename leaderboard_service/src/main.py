@@ -8,7 +8,8 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import HTMLResponse, JSONResponse
 from redis.asyncio import Redis
 
 from leaderboard_service.src.core.config import settings
@@ -75,6 +76,21 @@ app.add_middleware(
 
 # Mount application domain routes with /api/v1 prefix
 app.include_router(router)
+
+
+@app.get("/api/v1/leaderboard/docs", include_in_schema=False, response_class=HTMLResponse)
+async def get_gateway_swagger_ui() -> HTMLResponse:
+    """Swagger UI accessible through Caddy API Gateway."""
+    return get_swagger_ui_html(
+        openapi_url="/api/v1/leaderboard/openapi.json",
+        title=f"{app.title} - Swagger UI",
+    )
+
+
+@app.get("/api/v1/leaderboard/openapi.json", include_in_schema=False)
+async def get_gateway_openapi_schema() -> JSONResponse:
+    """OpenAPI JSON schema accessible through Caddy API Gateway."""
+    return JSONResponse(app.openapi())
 
 
 @app.get(
