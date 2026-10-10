@@ -1,385 +1,463 @@
-import React, { useEffect, useState } from 'react';
-import { Plus, Trash2, Calendar, Flame, Dumbbell, Filter } from 'lucide-react';
-import { workoutsApi } from '@/api/workouts';
-import { Workout, WorkoutCreate, WorkoutMetrics } from '@/types/workout';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import React, { useEffect, useState, useMemo } from 'react';
+import {
+  Plus,
+  Dumbbell,
+  Flame,
+  Zap,
+  Activity,
+  AlertCircle,
+  CheckCircle,
+  X,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
+import { Workout, isStrengthMetrics, isCardioMetrics } from '@/types/workout';
+import { useWorkoutStore } from '@/store/useWorkoutStore';
+import { useAuthStore } from '@/store/useAuthStore';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Badge } from '@/components/ui/Badge';
-import { Modal } from '@/components/ui/Modal';
+import { Card } from '@/components/ui/Card';
 import { Loader } from '@/components/ui/Loader';
+import {
+  WorkoutCard,
+  WorkoutFormModal,
+  WorkoutFilters,
+  DeleteWorkoutModal,
+} from '@/components/workouts';
 import { calculateOneRepMax, calculateSetTonnage, formatWeight } from '@/utils/fitness';
+import { getWorkoutDateKey, formatDateGroupHeading } from '@/utils/date';
 
 export const WorkoutsPage: React.FC = () => {
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedFilter, setSelectedFilter] = useState<string>('all');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const {
+    workouts,
+    isLoading,
+    isDeleting,
+    error,
+    successMessage,
+    filters,
+    pagination,
+    fetchWorkouts,
+    deleteWorkout,
+    setFilter,
+    resetFilters,
+    setSkip,
+    clearError,
+    clearSuccess,
+  } = useWorkoutStore();
 
-  // Form state
-  const [exerciseType, setExerciseType] = useState<'bench_press' | 'squats' | 'deadlift' | 'cardio'>('bench_press');
-  const [weight, setWeight] = useState<string>('100');
-  const [sets, setSets] = useState<string>('5');
-  const [reps, setReps] = useState<string>('5');
-  const [rpe, setRpe] = useState<string>('8');
-  const [distanceKm, setDistanceKm] = useState<string>('5');
-  const [durationMinutes, setDurationMinutes] = useState<string>('25');
+  const currentUser = useAuthStore((state) => state.user);
 
-  const fetchWorkouts = async () => {
-    try {
-      setIsLoading(true);
-      const data = await workoutsApi.list();
-      setWorkouts(data);
-    } catch {
-      // Keep empty if failed
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Modal states
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [workoutToEdit, setWorkoutToEdit] = useState<Workout | null>(null);
+  const [workoutToDelete, setWorkoutToDelete] = useState<Workout | null>(null);
 
+  // Initial fetch
   useEffect(() => {
     fetchWorkouts();
-  }, []);
+  }, [fetchWorkouts]);
 
-  const handleCreateWorkout = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
-    setIsSubmitting(true);
+  // Auto-clear success message after 4 seconds
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        clearSuccess();
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage, clearSuccess]);
 
-    try {
-      let metrics: WorkoutMetrics;
-
-      if (exerciseType === 'bench_press') {
-        metrics = {
-          exercise_type: 'bench_press',
-          weight: parseFloat(weight),
-          sets: parseInt(sets, 10),
-          reps: parseInt(reps, 10),
-          rpe: rpe ? parseFloat(rpe) : undefined,
-        };
-      } else if (exerciseType === 'squats') {
-        metrics = {
-          exercise_type: 'squats',
-          weight: parseFloat(weight),
-          sets: parseInt(sets, 10),
-          reps: parseInt(reps, 10),
-          rpe: rpe ? parseFloat(rpe) : undefined,
-          stance: 'medium',
-        };
-      } else if (exerciseType === 'deadlift') {
-        metrics = {
-          exercise_type: 'deadlift',
-          weight: parseFloat(weight),
-          sets: parseInt(sets, 10),
-          reps: parseInt(reps, 10),
-          rpe: rpe ? parseFloat(rpe) : undefined,
-          deadlift_style: 'conventional',
-        };
-      } else {
-        metrics = {
-          exercise_type: 'cardio',
-          exercise_name: 'Cardio Run',
-          distance_km: parseFloat(distanceKm),
-          duration_minutes: parseFloat(durationMinutes),
-        };
+  // Filtered workouts list (client-side filtering + search)
+  const filteredWorkouts = useMemo(() => {
+    return workouts.filter((workout) => {
+      // 1. My Workouts Only filter
+      if (filters.onlyMyWorkouts && currentUser) {
+        if (workout.user_id !== currentUser.id) return false;
       }
 
-      const payload: WorkoutCreate = {
-        type: exerciseType,
-        metrics,
-        date: new Date().toISOString(),
+      // 2. Exercise type filter
+      if (filters.exerciseType !== 'all') {
+        const rawType = (workout.type || workout.metrics.exercise_type || '').toLowerCase();
+        const exerciseName =
+          'exercise_name' in workout.metrics
+            ? (workout.metrics.exercise_name || '').toLowerCase()
+            : '';
+
+        if (filters.exerciseType === 'bench_press') {
+          if (!rawType.includes('bench')) return false;
+        } else if (filters.exerciseType === 'squats') {
+          if (!rawType.includes('squat')) return false;
+        } else if (filters.exerciseType === 'deadlift') {
+          if (!rawType.includes('deadlift')) return false;
+        } else if (filters.exerciseType === 'overhead_press') {
+          if (!rawType.includes('overhead') && !exerciseName.includes('overhead')) return false;
+        } else if (filters.exerciseType === 'cardio') {
+          if (
+            !rawType.includes('cardio') &&
+            !rawType.includes('treadmill') &&
+            !rawType.includes('run')
+          ) {
+            return false;
+          }
+        }
+      }
+
+      // 3. Search query
+      if (filters.searchQuery.trim()) {
+        const q = filters.searchQuery.toLowerCase();
+        const typeMatch = (workout.type || '').toLowerCase().includes(q);
+        const metricTypeMatch = (workout.metrics.exercise_type || '').toLowerCase().includes(q);
+        const exerciseNameMatch =
+          'exercise_name' in workout.metrics &&
+          (workout.metrics.exercise_name || '').toLowerCase().includes(q);
+        const styleMatch =
+          'deadlift_style' in workout.metrics &&
+          (workout.metrics.deadlift_style || '').toLowerCase().includes(q);
+        const stanceMatch =
+          'stance' in workout.metrics &&
+          (workout.metrics.stance || '').toLowerCase().includes(q);
+
+        if (!typeMatch && !metricTypeMatch && !exerciseNameMatch && !styleMatch && !stanceMatch) {
+          return false;
+        }
+      }
+
+      // 4. Date range filter
+      const workoutDate = new Date(workout.date || workout.created_at);
+      if (filters.startDate) {
+        const start = new Date(filters.startDate);
+        start.setHours(0, 0, 0, 0);
+        if (workoutDate < start) return false;
+      }
+      if (filters.endDate) {
+        const end = new Date(filters.endDate);
+        end.setHours(23, 59, 59, 999);
+        if (workoutDate > end) return false;
+      }
+
+      return true;
+    });
+  }, [workouts, filters, currentUser]);
+
+  // Overall athlete statistics from loaded workouts
+  const stats = useMemo(() => {
+    let totalTonnage = 0;
+    let heaviest1RM = 0;
+    let heaviestExercise = '';
+    let totalCardioKm = 0;
+
+    for (const w of workouts) {
+      if (isStrengthMetrics(w.metrics)) {
+        totalTonnage += calculateSetTonnage(w.metrics.weight, w.metrics.sets, w.metrics.reps);
+        const e1rm = calculateOneRepMax(w.metrics.weight, w.metrics.reps);
+        if (e1rm > heaviest1RM) {
+          heaviest1RM = e1rm;
+          heaviestExercise = (w.type || w.metrics.exercise_type).replace(/_/g, ' ');
+        }
+      } else if (isCardioMetrics(w.metrics)) {
+        totalCardioKm += w.metrics.distance_km;
+      }
+    }
+
+    return {
+      totalWorkouts: workouts.length,
+      totalTonnage,
+      heaviest1RM,
+      heaviestExercise,
+      totalCardioKm: Math.round(totalCardioKm * 10) / 10,
+    };
+  }, [workouts]);
+
+  // Group workouts by Date (sorted chronological descending)
+  const groupedWorkouts = useMemo(() => {
+    const sorted = [...filteredWorkouts].sort((a, b) => {
+      const dateA = new Date(a.date || a.created_at).getTime();
+      const dateB = new Date(b.date || b.created_at).getTime();
+      return dateB - dateA;
+    });
+
+    const groups: { [dateKey: string]: Workout[] } = {};
+    for (const w of sorted) {
+      const key = getWorkoutDateKey(w.date || w.created_at);
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(w);
+    }
+
+    return Object.entries(groups).map(([dateKey, items]) => {
+      // Calculate day tonnage
+      const dayTonnage = items.reduce((sum, item) => {
+        if (isStrengthMetrics(item.metrics)) {
+          return sum + calculateSetTonnage(item.metrics.weight, item.metrics.sets, item.metrics.reps);
+        }
+        return sum;
+      }, 0);
+
+      return {
+        dateKey,
+        heading: formatDateGroupHeading(dateKey),
+        items,
+        dayTonnage,
       };
+    });
+  }, [filteredWorkouts]);
 
-      await workoutsApi.create(payload);
-      setIsModalOpen(false);
-      await fetchWorkouts();
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setFormError(err.message);
-      } else {
-        setFormError('Failed to create workout');
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
+  // Handlers
+  const handleOpenCreateModal = () => {
+    setWorkoutToEdit(null);
+    setIsFormModalOpen(true);
   };
 
-  const handleDeleteWorkout = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this workout record?')) {
-      return;
-    }
+  const handleOpenEditModal = (workout: Workout) => {
+    setWorkoutToEdit(workout);
+    setIsFormModalOpen(true);
+  };
+
+  const handleOpenDeleteModal = (workout: Workout) => {
+    setWorkoutToDelete(workout);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!workoutToDelete) return;
     try {
-      await workoutsApi.delete(id);
-      setWorkouts((prev) => prev.filter((w) => w.id !== id));
-    } catch (err) {
-      alert('Failed to delete workout record.');
+      await deleteWorkout(workoutToDelete.id);
+      setWorkoutToDelete(null);
+    } catch {
+      // Handled by store
     }
   };
-
-  const filteredWorkouts = workouts.filter((w) => {
-    if (selectedFilter === 'all') return true;
-    const t = (w.type || w.metrics.exercise_type).toLowerCase();
-    if (selectedFilter === 'bench_press') return t.includes('bench');
-    if (selectedFilter === 'squat') return t.includes('squat');
-    if (selectedFilter === 'deadlift') return t.includes('deadlift');
-    if (selectedFilter === 'cardio') return t.includes('cardio') || t.includes('treadmill') || t.includes('run');
-    return true;
-  });
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Toast notifications */}
+      {successMessage && (
+        <div className="flex items-center justify-between p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs shadow-lg animate-in fade-in duration-200">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span className="font-medium">{successMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={clearSuccess}
+            className="p-1 text-emerald-400 hover:text-emerald-200 rounded"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <div className="flex items-center justify-between p-3.5 rounded-xl bg-red-500/15 border border-red-500/30 text-red-300 text-xs shadow-lg animate-in fade-in duration-200">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+            <span className="font-medium">{error}</span>
+          </div>
+          <button
+            type="button"
+            onClick={clearError}
+            className="p-1 text-red-400 hover:text-red-200 rounded"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Header bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-white">Workouts Journal</h1>
-          <p className="text-xs text-zinc-400">Log, review, and analyze your training sessions</p>
+          <h1 className="text-2xl font-black text-white tracking-tight">Workouts Journal</h1>
+          <p className="text-xs text-zinc-400 mt-0.5">
+            Log telemetry, build multi-set volume, and analyze personal performance records
+          </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} variant="primary" size="md">
-          <Plus className="w-4 h-4 mr-1.5" />
+        <Button onClick={handleOpenCreateModal} variant="primary" size="md" className="gap-2 shrink-0">
+          <Plus className="w-4 h-4" />
           <span>Log Workout</span>
         </Button>
       </div>
 
-      {/* Filters Bar */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-zinc-800 pb-4">
-        <div className="flex items-center gap-1.5 text-xs text-zinc-400 mr-2">
-          <Filter className="w-3.5 h-3.5" />
-          <span>Filter:</span>
+      {/* Athlete Stats Strip */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="rounded-xl bg-zinc-900/80 border border-zinc-800/80 p-3.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+              Total Sessions
+            </span>
+            <Dumbbell className="w-4 h-4 text-zinc-500" />
+          </div>
+          <div className="mt-2 text-xl font-black text-white font-mono">
+            {stats.totalWorkouts}
+          </div>
         </div>
-        {[
-          { id: 'all', label: 'All Lifts' },
-          { id: 'bench_press', label: 'Bench Press' },
-          { id: 'squat', label: 'Squats' },
-          { id: 'deadlift', label: 'Deadlift' },
-          { id: 'cardio', label: 'Cardio' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setSelectedFilter(tab.id)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-              selectedFilter === tab.id
-                ? 'bg-amber-500 text-zinc-950 shadow-md shadow-amber-500/20'
-                : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+
+        <div className="rounded-xl bg-zinc-900/80 border border-zinc-800/80 p-3.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+              Total Tonnage
+            </span>
+            <Flame className="w-4 h-4 text-red-500" />
+          </div>
+          <div className="mt-2 text-xl font-black text-red-400 font-mono">
+            {formatWeight(stats.totalTonnage)}
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-zinc-900/80 border border-zinc-800/80 p-3.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+              Heaviest 1RM
+            </span>
+            <Zap className="w-4 h-4 text-amber-500" />
+          </div>
+          <div className="mt-2 text-xl font-black text-amber-400 font-mono">
+            {stats.heaviest1RM > 0 ? `${stats.heaviest1RM} kg` : '—'}
+          </div>
+          {stats.heaviestExercise && (
+            <span className="text-[10px] text-zinc-500 capitalize truncate block">
+              {stats.heaviestExercise}
+            </span>
+          )}
+        </div>
+
+        <div className="rounded-xl bg-zinc-900/80 border border-zinc-800/80 p-3.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+              Cardio Distance
+            </span>
+            <Activity className="w-4 h-4 text-cyan-400" />
+          </div>
+          <div className="mt-2 text-xl font-black text-cyan-400 font-mono">
+            {stats.totalCardioKm > 0 ? `${stats.totalCardioKm} km` : '—'}
+          </div>
+        </div>
       </div>
 
-      {/* Workouts Grid */}
+      {/* Filters & Search Toolbar */}
+      <WorkoutFilters
+        filters={filters}
+        onFilterChange={setFilter}
+        onReset={resetFilters}
+        totalCount={filteredWorkouts.length}
+      />
+
+      {/* Main Content Area */}
       {isLoading ? (
-        <Loader text="Loading workout journal..." />
+        <Loader text="Loading workout journal records..." />
       ) : filteredWorkouts.length === 0 ? (
         <Card className="border-dashed border-zinc-800 bg-zinc-900/40 p-12 text-center">
           <Dumbbell className="mx-auto h-12 w-12 text-zinc-600 mb-3" />
           <h3 className="text-base font-bold text-white">No workouts found</h3>
-          <p className="text-xs text-zinc-400 max-w-sm mx-auto mt-1 mb-4">
-            {selectedFilter === 'all'
-              ? 'No workouts logged yet. Start crushing reps today!'
-              : `No workouts found matching category "${selectedFilter}".`}
+          <p className="text-xs text-zinc-400 max-w-sm mx-auto mt-1 mb-4 leading-relaxed">
+            {workouts.length === 0
+              ? 'Your workout diary is currently empty. Start logging sets to begin tracking progression and tonnage!'
+              : 'No workouts matched your active filter criteria. Try adjusting your search term or date range.'}
           </p>
-          <Button onClick={() => setIsModalOpen(true)} variant="primary" size="sm">
-            <Plus className="w-4 h-4 mr-1" />
-            <span>Record Workout</span>
-          </Button>
+          <div className="flex items-center justify-center gap-3">
+            {workouts.length > 0 && (
+              <Button onClick={resetFilters} variant="secondary" size="sm">
+                Reset Filters
+              </Button>
+            )}
+            <Button onClick={handleOpenCreateModal} variant="primary" size="sm">
+              <Plus className="w-4 h-4 mr-1" />
+              <span>Record Workout</span>
+            </Button>
+          </div>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredWorkouts.map((workout) => {
-            const isStrength = 'weight' in workout.metrics && 'sets' in workout.metrics && 'reps' in workout.metrics;
-            const tonnage = isStrength
-              ? calculateSetTonnage(
-                  (workout.metrics as { weight: number }).weight,
-                  (workout.metrics as { sets: number }).sets,
-                  (workout.metrics as { reps: number }).reps
-                )
-              : null;
-            const oneRepMax = isStrength
-              ? calculateOneRepMax(
-                  (workout.metrics as { weight: number }).weight,
-                  (workout.metrics as { reps: number }).reps
-                )
-              : null;
+        <div className="space-y-8">
+          {groupedWorkouts.map((group) => (
+            <section key={group.dateKey} className="space-y-3">
+              {/* Date Group Heading Banner */}
+              <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
+                <div className="flex items-center gap-2.5">
+                  <h2 className="text-sm font-bold text-white tracking-wide">
+                    {group.heading}
+                  </h2>
+                  <span className="px-2 py-0.5 rounded-full bg-zinc-800 text-[10px] font-semibold text-zinc-400">
+                    {group.items.length} {group.items.length === 1 ? 'session' : 'sessions'}
+                  </span>
+                </div>
 
-            return (
-              <Card key={workout.id} className="border-zinc-800 bg-zinc-900/80 hover:border-zinc-700 transition-colors">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="accent" size="sm">
-                      {workout.type || workout.metrics.exercise_type}
-                    </Badge>
-                    <button
-                      onClick={() => handleDeleteWorkout(workout.id)}
-                      className="text-zinc-500 hover:text-red-400 p-1 rounded-md transition-colors"
-                      title="Delete workout"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                {group.dayTonnage > 0 && (
+                  <div className="text-xs font-medium text-zinc-400 flex items-center gap-1 font-mono">
+                    <Flame className="w-3.5 h-3.5 text-red-500" />
+                    <span>{formatWeight(group.dayTonnage)}</span>
                   </div>
-                  <CardTitle className="text-base capitalize mt-2">
-                    {(workout.type || workout.metrics.exercise_type).replace('_', ' ')}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {isStrength ? (
-                    <>
-                      <div className="rounded-lg bg-zinc-950/60 p-3 flex justify-between items-center text-sm">
-                        <span className="text-zinc-400 text-xs">Work Sets</span>
-                        <span className="font-bold text-white font-mono">
-                          {(workout.metrics as { sets: number }).sets} × {(workout.metrics as { reps: number }).reps} @ {(workout.metrics as { weight: number }).weight} kg
-                        </span>
-                      </div>
+                )}
+              </div>
 
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="rounded-lg bg-zinc-950/40 p-2.5">
-                          <span className="text-zinc-500 block mb-0.5">Tonnage</span>
-                          <span className="font-bold text-red-400 flex items-center gap-1">
-                            <Flame className="w-3.5 h-3.5 inline" />
-                            {formatWeight(tonnage || 0)}
-                          </span>
-                        </div>
-                        <div className="rounded-lg bg-zinc-950/40 p-2.5">
-                          <span className="text-zinc-500 block mb-0.5">Estimated 1RM</span>
-                          <span className="font-bold text-amber-400">{oneRepMax} kg</span>
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="rounded-lg bg-zinc-950/60 p-3 text-xs space-y-1">
-                      <div className="flex justify-between">
-                        <span className="text-zinc-400">Distance</span>
-                        <span className="font-bold text-white">
-                          {'distance_km' in workout.metrics ? (workout.metrics as { distance_km: number }).distance_km : 0} km
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-zinc-400">Duration</span>
-                        <span className="font-bold text-white">
-                          {'duration_minutes' in workout.metrics ? (workout.metrics as { duration_minutes: number }).duration_minutes : 0} min
-                        </span>
-                      </div>
-                    </div>
-                  )}
+              {/* Workouts Grid for this date */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {group.items.map((workout) => (
+                  <WorkoutCard
+                    key={workout.id}
+                    workout={workout}
+                    onEdit={handleOpenEditModal}
+                    onDelete={handleOpenDeleteModal}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
 
-                  <div className="flex items-center gap-1.5 text-[11px] text-zinc-500 pt-1 border-t border-zinc-800/60">
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>{new Date(workout.date || workout.created_at).toLocaleString()}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+          {/* Pagination Controls */}
+          <div className="flex items-center justify-between pt-4 border-t border-zinc-800/80 text-xs text-zinc-400">
+            <div>
+              Showing <span className="text-white font-semibold">{filteredWorkouts.length}</span> records
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={pagination.skip === 0 || isLoading}
+                onClick={() => {
+                  const newSkip = Math.max(0, pagination.skip - pagination.limit);
+                  setSkip(newSkip);
+                  fetchWorkouts();
+                }}
+                className="gap-1 px-3 py-1.5"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                Previous
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={!pagination.hasMore || isLoading}
+                onClick={() => {
+                  const newSkip = pagination.skip + pagination.limit;
+                  setSkip(newSkip);
+                  fetchWorkouts();
+                }}
+                className="gap-1 px-3 py-1.5"
+              >
+                Next
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Log Workout Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Log Workout Session"
-        description="Enter telemetry for your completed lift or cardio"
-      >
-        <form onSubmit={handleCreateWorkout} className="space-y-4 mt-2">
-          {formError && (
-            <div className="p-3 text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg">
-              {formError}
-            </div>
-          )}
+      {/* Create / Edit Workout Modal */}
+      <WorkoutFormModal
+        isOpen={isFormModalOpen}
+        onClose={() => {
+          setIsFormModalOpen(false);
+          setWorkoutToEdit(null);
+        }}
+        workoutToEdit={workoutToEdit}
+      />
 
-          <div className="space-y-1.5">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300">
-              Exercise Type
-            </label>
-            <select
-              value={exerciseType}
-              onChange={(e) =>
-                setExerciseType(e.target.value as 'bench_press' | 'squats' | 'deadlift' | 'cardio')
-              }
-              className="w-full px-3.5 py-2.5 rounded-lg text-sm bg-zinc-900 border border-zinc-800 text-zinc-100 focus:border-amber-500 focus:outline-none"
-            >
-              <option value="bench_press">Bench Press</option>
-              <option value="squats">Squats</option>
-              <option value="deadlift">Deadlift</option>
-              <option value="cardio">Cardio / Treadmill</option>
-            </select>
-          </div>
-
-          {exerciseType !== 'cardio' ? (
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Weight (kg)"
-                type="number"
-                step="0.5"
-                min="1"
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
-                required
-              />
-              <Input
-                label="Sets"
-                type="number"
-                min="1"
-                value={sets}
-                onChange={(e) => setSets(e.target.value)}
-                required
-              />
-              <Input
-                label="Reps per Set"
-                type="number"
-                min="1"
-                value={reps}
-                onChange={(e) => setReps(e.target.value)}
-                required
-              />
-              <Input
-                label="RPE (1-10)"
-                type="number"
-                min="1"
-                max="10"
-                step="0.5"
-                value={rpe}
-                onChange={(e) => setRpe(e.target.value)}
-              />
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Distance (km)"
-                type="number"
-                step="0.1"
-                min="0.1"
-                value={distanceKm}
-                onChange={(e) => setDistanceKm(e.target.value)}
-                required
-              />
-              <Input
-                label="Duration (min)"
-                type="number"
-                min="1"
-                value={durationMinutes}
-                onChange={(e) => setDurationMinutes(e.target.value)}
-                required
-              />
-            </div>
-          )}
-
-          <div className="flex justify-end gap-3 pt-3 border-t border-zinc-800">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setIsModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary" isLoading={isSubmitting}>
-              Save Workout
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      {/* Delete Confirmation Modal */}
+      <DeleteWorkoutModal
+        isOpen={Boolean(workoutToDelete)}
+        onClose={() => setWorkoutToDelete(null)}
+        workout={workoutToDelete}
+        onConfirm={handleConfirmDelete}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 };

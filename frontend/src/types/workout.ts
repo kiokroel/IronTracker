@@ -36,17 +36,6 @@ export interface DeadliftMetrics {
   deadlift_style?: 'conventional' | 'sumo';
 }
 
-export interface TreadmillMetrics {
-  exercise_type: 'treadmill' | 'running';
-  distance_km: number;
-  duration_minutes: number;
-  heart_rate?: number;
-  incline_percentage?: number;
-  speed_kmh?: number;
-  pace_min_per_km?: number;
-  calories_burned?: number;
-}
-
 export interface StrengthExerciseMetrics {
   exercise_type: 'strength';
   exercise_name: string;
@@ -65,13 +54,26 @@ export interface CardioExerciseMetrics {
   calories_burned?: number;
 }
 
+export interface TreadmillMetrics {
+  exercise_type: 'treadmill' | 'running';
+  distance_km: number;
+  duration_minutes: number;
+  heart_rate?: number;
+  incline_percentage?: number;
+  speed_kmh?: number;
+  pace_min_per_km?: number;
+  calories_burned?: number;
+}
+
+export type CardioMetrics = CardioExerciseMetrics | TreadmillMetrics;
+
 export type WorkoutMetrics =
   | BenchPressMetrics
   | SquatMetrics
   | DeadliftMetrics
-  | TreadmillMetrics
   | StrengthExerciseMetrics
-  | CardioExerciseMetrics;
+  | CardioExerciseMetrics
+  | TreadmillMetrics;
 
 export interface Workout {
   id: string;
@@ -94,4 +96,38 @@ export interface WorkoutUpdate {
   type?: string;
   metrics?: WorkoutMetrics;
   date?: string;
+}
+
+export interface WorkoutSetRow {
+  id: string;
+  setNumber: number;
+  weight: number;
+  reps: number;
+  rpe?: number;
+}
+
+export interface WorkoutFiltersState {
+  exerciseType: string;
+  searchQuery: string;
+  startDate: string;
+  endDate: string;
+  onlyMyWorkouts: boolean;
+}
+
+/**
+ * Type guard for strength exercise metrics
+ */
+export function isStrengthMetrics(
+  metrics: WorkoutMetrics
+): metrics is BenchPressMetrics | SquatMetrics | DeadliftMetrics | StrengthExerciseMetrics {
+  return 'weight' in metrics && 'sets' in metrics && 'reps' in metrics;
+}
+
+/**
+ * Type guard for cardio exercise metrics
+ */
+export function isCardioMetrics(
+  metrics: WorkoutMetrics
+): metrics is CardioExerciseMetrics | TreadmillMetrics {
+  return 'distance_km' in metrics && 'duration_minutes' in metrics;
 }
