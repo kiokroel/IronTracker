@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Dumbbell, Trophy, TrendingUp, User, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Dumbbell, Trophy, TrendingUp, ShieldCheck } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
 interface NavItem {
@@ -14,12 +14,11 @@ const navItems: NavItem[] = [
   { label: 'Workouts', to: '/workouts', icon: Dumbbell },
   { label: 'Leaderboard', to: '/leaderboard', icon: Trophy },
   { label: 'Analytics', to: '/analytics', icon: TrendingUp },
-  { label: 'Profile', to: '/profile', icon: User },
 ];
 
 export const Sidebar: React.FC = () => {
   return (
-    <aside className="w-64 shrink-0 border-r border-zinc-800 bg-zinc-950/60 p-4 flex flex-col justify-between hidden md:flex">
+    <aside className="w-64 shrink-0 h-full border-r border-zinc-800 bg-zinc-950/60 p-4 flex flex-col justify-between hidden md:flex select-none">
       <div className="space-y-6">
         <div>
           <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-zinc-500">

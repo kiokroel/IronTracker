@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { BarChart3, TrendingUp, Calendar, Zap } from 'lucide-react';
+import React, { useState, memo } from 'react';
+import { BarChart3, TrendingUp } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { formatWeight } from '@/utils/fitness';
 
@@ -13,7 +13,7 @@ interface VolumeTrendChartProps {
   data: VolumeDataPoint[];
 }
 
-export const VolumeTrendChart: React.FC<VolumeTrendChartProps> = ({ data }) => {
+export const VolumeTrendChart: React.FC<VolumeTrendChartProps> = memo(({ data }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
 
@@ -183,32 +183,70 @@ export const VolumeTrendChart: React.FC<VolumeTrendChartProps> = ({ data }) => {
               const barWidth = Math.min(28, (chartWidth / data.length) * 0.65);
 
               return (
-                <g
-                  key={idx}
-                  className="cursor-pointer"
-                  onMouseEnter={() => setHoveredIndex(idx)}
-                  onMouseLeave={() => setHoveredIndex(null)}
-                >
+                <g key={idx}>
                   {chartType === 'bar' ? (
-                    <rect
-                      x={x - barWidth / 2}
-                      y={y}
-                      width={barWidth}
-                      height={Math.max(4, height - padding.bottom - y)}
-                      rx="4"
-                      fill={isHovered ? 'url(#barGradientActive)' : 'url(#barGradient)'}
-                      className="transition-all duration-200"
-                    />
+                    <>
+                      {/* Visible Bar */}
+                      <rect
+                        x={x - barWidth / 2}
+                        y={y}
+                        width={barWidth}
+                        height={Math.max(4, height - padding.bottom - y)}
+                        rx="4"
+                        fill={isHovered ? 'url(#barGradientActive)' : 'url(#barGradient)'}
+                        pointerEvents="none"
+                      />
+
+                      {/* Wide Bar Hitbox */}
+                      <rect
+                        x={x - Math.max(barWidth, 24) / 2}
+                        y={Math.max(padding.top, y - 10)}
+                        width={Math.max(barWidth, 24)}
+                        height={Math.max(20, height - padding.bottom - Math.max(padding.top, y - 10))}
+                        fill="transparent"
+                        className="cursor-pointer"
+                        onMouseEnter={() => setHoveredIndex(idx)}
+                        onMouseLeave={() => setHoveredIndex(null)}
+                      />
+                    </>
                   ) : (
-                    <circle
-                      cx={x}
-                      cy={y}
-                      r={isHovered ? 6 : 4}
-                      fill={isHovered ? '#fbbf24' : '#f59e0b'}
-                      stroke="#18181b"
-                      strokeWidth="2"
-                      className="transition-all duration-200"
-                    />
+                    <>
+                      {/* Active Point Glow */}
+                      {isHovered && (
+                        <circle
+                          cx={x}
+                          cy={y}
+                          r={10}
+                          fill="none"
+                          stroke="#f59e0b"
+                          strokeWidth="2"
+                          opacity="0.4"
+                          pointerEvents="none"
+                        />
+                      )}
+
+                      {/* Visible Circle */}
+                      <circle
+                        cx={x}
+                        cy={y}
+                        r={isHovered ? 6.5 : 4}
+                        fill={isHovered ? '#fbbf24' : '#f59e0b'}
+                        stroke="#18181b"
+                        strokeWidth={2}
+                        pointerEvents="none"
+                      />
+
+                      {/* Wide Line Hitbox (r=18) */}
+                      <circle
+                        cx={x}
+                        cy={y}
+                        r={18}
+                        fill="transparent"
+                        className="cursor-pointer"
+                        onMouseEnter={() => setHoveredIndex(idx)}
+                        onMouseLeave={() => setHoveredIndex(null)}
+                      />
+                    </>
                   )}
 
                   {/* X Axis Date Label */}
@@ -216,7 +254,7 @@ export const VolumeTrendChart: React.FC<VolumeTrendChartProps> = ({ data }) => {
                     x={x}
                     y={height - padding.bottom + 18}
                     textAnchor="middle"
-                    className={`text-[10px] font-mono transition-colors ${
+                    className={`text-[10px] font-mono select-none pointer-events-none transition-colors ${
                       isHovered ? 'fill-amber-400 font-bold' : 'fill-zinc-500'
                     }`}
                   >
@@ -225,39 +263,69 @@ export const VolumeTrendChart: React.FC<VolumeTrendChartProps> = ({ data }) => {
                 </g>
               );
             })}
-          </svg>
 
-          {/* Interactive Tooltip */}
-          {hoveredIndex !== null && data[hoveredIndex] && (
-            <div
-              className="absolute z-20 pointer-events-none rounded-lg border border-amber-500/40 bg-zinc-950/95 p-2.5 shadow-xl backdrop-blur-sm transition-all"
-              style={{
-                left: `${Math.min(
-                  width - 150,
-                  Math.max(10, getX(hoveredIndex) - 60)
-                )}px`,
-                top: `${Math.max(10, getY(data[hoveredIndex].volume) - 70)}px`,
-              }}
-            >
-              <div className="flex items-center gap-1.5 text-xs text-zinc-400">
-                <Calendar className="h-3 w-3 text-amber-500" />
-                <span>{data[hoveredIndex].date}</span>
-              </div>
-              <div className="mt-1 flex items-center gap-1.5">
-                <Zap className="h-3.5 w-3.5 text-amber-400" />
-                <span className="font-mono text-sm font-bold text-amber-400">
-                  {formatWeight(data[hoveredIndex].volume)}
-                </span>
-              </div>
-              <div className="text-[11px] text-zinc-500 capitalize">
-                {data[hoveredIndex].workoutType.replace('_', ' ')}
-              </div>
-            </div>
-          )}
+            {/* In-SVG Vector Tooltip */}
+            {hoveredIndex !== null && data[hoveredIndex] && (() => {
+              const pt = data[hoveredIndex];
+              const px = getX(hoveredIndex);
+              const py = getY(pt.volume);
+              const tooltipWidth = 155;
+              const tooltipHeight = 52;
+
+              let tx = px - tooltipWidth / 2;
+              if (tx < padding.left) tx = padding.left;
+              if (tx + tooltipWidth > width - padding.right) tx = width - padding.right - tooltipWidth;
+
+              let ty = py - tooltipHeight - 12;
+              if (ty < padding.top) {
+                ty = chartType === 'bar' ? py + 12 : py + 14;
+              }
+
+              return (
+                <g pointerEvents="none" className="transition-opacity duration-150">
+                  <rect
+                    x={tx}
+                    y={ty}
+                    width={tooltipWidth}
+                    height={tooltipHeight}
+                    rx={8}
+                    fill="#09090b"
+                    stroke="#f59e0b"
+                    strokeWidth={1}
+                    opacity={0.95}
+                  />
+                  <text
+                    x={tx + 12}
+                    y={ty + 18}
+                    fill="#a1a1aa"
+                    fontSize="11"
+                    fontFamily="ui-sans-serif, system-ui, sans-serif"
+                    className="select-none font-medium"
+                  >
+                    {pt.date}
+                  </text>
+                  <text
+                    x={tx + 12}
+                    y={ty + 38}
+                    fill="#f59e0b"
+                    fontSize="13"
+                    fontWeight="bold"
+                    fontFamily="ui-monospace, monospace"
+                    className="select-none"
+                  >
+                    {formatWeight(pt.volume)}{' '}
+                    <tspan fill="#a1a1aa" fontSize="10" fontWeight="normal">
+                      ({pt.workoutType.replace(/_/g, ' ')})
+                    </tspan>
+                  </text>
+                </g>
+              );
+            })()}
+          </svg>
         </div>
       </CardContent>
     </Card>
   );
-};
+});
 
 export default VolumeTrendChart;
