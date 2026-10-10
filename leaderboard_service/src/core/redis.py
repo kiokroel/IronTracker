@@ -30,7 +30,10 @@ async def init_redis_pool(url: str | None = None) -> ConnectionPool:
     """Initialize Redis connection pool and verify connectivity."""
     global _redis_pool
     if _redis_pool is not None:
-        await _redis_pool.disconnect()
+        try:
+            await _redis_pool.disconnect()
+        except (RuntimeError, OSError):
+            pass
 
     redis_url = url or get_settings().redis_url
     _redis_pool = ConnectionPool.from_url(
@@ -56,7 +59,10 @@ async def close_redis_pool() -> None:
     global _redis_pool
     if _redis_pool is not None:
         logger.info("Closing Redis connection pool")
-        await _redis_pool.disconnect()
+        try:
+            await _redis_pool.disconnect()
+        except (RuntimeError, OSError):
+            pass
         _redis_pool = None
 
 

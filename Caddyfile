@@ -9,6 +9,11 @@
         respond "{\"status\":\"ok\",\"service\":\"caddy-gateway\"}" 200
     }
 
+    # Reverse proxy to Users Service
+    handle /api/v1/users* {
+        reverse_proxy {$USERS_SERVICE_URL:users-service:8001}
+    }
+
     # Reverse proxy to Workout Service
     handle /api/v1/workouts* {
         reverse_proxy {$WORKOUT_SERVICE_URL:workout-service:8000}

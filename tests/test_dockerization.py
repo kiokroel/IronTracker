@@ -17,6 +17,7 @@ SERVICE_DOCKERFILES: dict[str, Path] = {
     "leaderboard_service": PROJECT_ROOT / "leaderboard_service" / "Dockerfile",
     "analytics_service": PROJECT_ROOT / "analytics_service" / "Dockerfile",
     "notification_service": PROJECT_ROOT / "notification_service" / "Dockerfile",
+    "users_service": PROJECT_ROOT / "users_service" / "Dockerfile",
 }
 
 EXPECTED_APP_SERVICES: list[str] = [
@@ -26,6 +27,7 @@ EXPECTED_APP_SERVICES: list[str] = [
     "leaderboard-consumer",
     "analytics-worker",
     "notification-worker",
+    "users-service",
 ]
 
 EXPECTED_INFRA_SERVICES: list[str] = [
@@ -239,6 +241,7 @@ def test_app_services_depends_on_conditions(compose_config: dict[str, Any]) -> N
         "leaderboard-consumer": ["redis", "kafka"],
         "analytics-worker": ["mongodb", "kafka"],
         "notification-worker": ["rabbitmq"],
+        "users-service": ["postgres"],
     }
 
     for svc_name, deps in expected_dependencies.items():

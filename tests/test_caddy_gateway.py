@@ -12,6 +12,7 @@ from redis.asyncio import Redis
 
 from leaderboard_service.src.dependencies import get_redis
 from leaderboard_service.src.main import app as leaderboard_app
+from users_service.src.main import app as users_app
 from workout_service.src.core.database import get_db
 from workout_service.src.main import app as workout_app
 
@@ -61,6 +62,14 @@ def test_caddyfile_structure_and_directives() -> None:
     )
     assert "leaderboard-service:8002" in content, (
         "Must proxy to leaderboard-service:8002 with environment variable support"
+    )
+
+    # Users service reverse proxy
+    assert "handle /api/v1/users* {" in content, (
+        "Must contain /api/v1/users* reverse proxy handle block"
+    )
+    assert "users-service:8001" in content, (
+        "Must proxy to users-service:8001 with environment variable support"
     )
 
     # Fallback 404 handle
@@ -129,6 +138,7 @@ class SimulatedGatewayClient:
     def __init__(self) -> None:
         self.workout_transport = ASGITransport(app=workout_app)
         self.leaderboard_transport = ASGITransport(app=leaderboard_app)
+        self.users_transport = ASGITransport(app=users_app)
 
     async def get(self, path: str, **kwargs: Any) -> Any:
         if path == "/health":
@@ -148,6 +158,11 @@ class SimulatedGatewayClient:
         elif path.startswith("/api/v1/leaderboard"):
             async with AsyncClient(
                 transport=self.leaderboard_transport, base_url="http://gateway"
+            ) as client:
+                return await client.get(path, **kwargs)
+        elif path.startswith("/api/v1/users"):
+            async with AsyncClient(
+                transport=self.users_transport, base_url="http://gateway"
             ) as client:
                 return await client.get(path, **kwargs)
         else:
@@ -233,3 +248,11 @@ async def test_gateway_unmatched_route_returns_404() -> None:
     response = await gateway.get("/api/v1/unknown-service/endpoint")
     assert response.status_code == 404
     assert response.json() == {"detail": "Not Found"}
+
+
+@pytest.mark.asyncio
+async def test_gateway_routes_to_users_service() -> None:
+    """Verify that /api/v1/users requests are forwarded to Users Service."""
+    gateway = SimulatedGatewayClient()
+    response = await gateway.get("/api/v1/users/me")
+    assert response.status_code == 401
