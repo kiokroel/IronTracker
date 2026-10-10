@@ -5,6 +5,8 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,6 +33,21 @@ app.add_middleware(
 
 # Include canonical /api/v1 router
 app.include_router(router)
+
+
+@app.get("/api/v1/users/docs", include_in_schema=False, response_class=HTMLResponse)
+async def get_gateway_swagger_ui() -> HTMLResponse:
+    """Swagger UI accessible through Caddy API Gateway."""
+    return get_swagger_ui_html(
+        openapi_url="/api/v1/users/openapi.json",
+        title=f"{app.title} - Swagger UI",
+    )
+
+
+@app.get("/api/v1/users/openapi.json", include_in_schema=False)
+async def get_gateway_openapi_schema() -> JSONResponse:
+    """OpenAPI JSON schema accessible through Caddy API Gateway."""
+    return JSONResponse(app.openapi())
 
 
 @app.get("/health", tags=["Monitoring"])

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Filter, Search, RotateCcw, Calendar, CheckSquare, Square } from 'lucide-react';
+import { Filter, Search, RotateCcw, Calendar } from 'lucide-react';
 import { WorkoutFiltersState } from '@/types/workout';
 import { Button } from '@/components/ui/Button';
 
@@ -29,12 +29,11 @@ export const WorkoutFilters: React.FC<WorkoutFiltersProps> = ({
     filters.exerciseType !== 'all' ||
     Boolean(filters.searchQuery) ||
     Boolean(filters.startDate) ||
-    Boolean(filters.endDate) ||
-    filters.onlyMyWorkouts;
+    Boolean(filters.endDate);
 
   return (
     <div className="space-y-3.5 bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-4">
-      {/* Top row: Filter chips and "Only My Workouts" */}
+      {/* Top row: Filter chips */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* Chips */}
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -59,26 +58,6 @@ export const WorkoutFilters: React.FC<WorkoutFiltersProps> = ({
               </button>
             );
           })}
-        </div>
-
-        {/* "Only My Workouts" toggle */}
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => onFilterChange('onlyMyWorkouts', !filters.onlyMyWorkouts)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border select-none ${
-              filters.onlyMyWorkouts
-                ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400'
-                : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-300'
-            }`}
-          >
-            {filters.onlyMyWorkouts ? (
-              <CheckSquare className="w-3.5 h-3.5 text-emerald-400" />
-            ) : (
-              <Square className="w-3.5 h-3.5 text-zinc-500" />
-            )}
-            <span>My Logs Only</span>
-          </button>
         </div>
       </div>
 

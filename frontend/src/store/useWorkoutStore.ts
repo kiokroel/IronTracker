@@ -35,7 +35,7 @@ export const initialFilters: WorkoutFiltersState = {
   searchQuery: '',
   startDate: '',
   endDate: '',
-  onlyMyWorkouts: false,
+  onlyMyWorkouts: true,
 };
 
 interface PaginationState {
@@ -87,14 +87,14 @@ export const useWorkoutStore = create<WorkoutStoreState>((set, get) => ({
   fetchWorkouts: async (resetPagination = false) => {
     set({ isLoading: true, error: null });
     try {
-      const { pagination, filters } = get();
+      const { pagination } = get();
       const currentSkip = resetPagination ? 0 : pagination.skip;
       const currentUser = useAuthStore.getState().user;
 
       const params = {
         skip: currentSkip,
         limit: pagination.limit,
-        user_id: filters.onlyMyWorkouts && currentUser ? currentUser.id : undefined,
+        user_id: currentUser ? currentUser.id : undefined,
       };
 
       const data = await workoutsApi.getWorkouts(params);

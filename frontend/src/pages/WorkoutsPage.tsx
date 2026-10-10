@@ -69,9 +69,9 @@ export const WorkoutsPage: React.FC = () => {
   // Filtered workouts list (client-side filtering + search)
   const filteredWorkouts = useMemo(() => {
     return workouts.filter((workout) => {
-      // 1. My Workouts Only filter
-      if (filters.onlyMyWorkouts && currentUser) {
-        if (workout.user_id !== currentUser.id) return false;
+      // 1. Ensure only current user's workouts are displayed
+      if (currentUser && workout.user_id !== currentUser.id) {
+        return false;
       }
 
       // 2. Exercise type filter
@@ -145,7 +145,9 @@ export const WorkoutsPage: React.FC = () => {
     let heaviestExercise = '';
     let totalCardioKm = 0;
 
-    for (const w of workouts) {
+    const userWorkouts = currentUser ? workouts.filter((w) => w.user_id === currentUser.id) : workouts;
+
+    for (const w of userWorkouts) {
       if (isStrengthMetrics(w.metrics)) {
         totalTonnage += calculateSetTonnage(w.metrics.weight, w.metrics.sets, w.metrics.reps);
         const e1rm = calculateOneRepMax(w.metrics.weight, w.metrics.reps);
@@ -159,13 +161,13 @@ export const WorkoutsPage: React.FC = () => {
     }
 
     return {
-      totalWorkouts: workouts.length,
+      totalWorkouts: userWorkouts.length,
       totalTonnage,
       heaviest1RM,
       heaviestExercise,
       totalCardioKm: Math.round(totalCardioKm * 10) / 10,
     };
-  }, [workouts]);
+  }, [workouts, currentUser]);
 
   // Group workouts by Date (sorted chronological descending)
   const groupedWorkouts = useMemo(() => {

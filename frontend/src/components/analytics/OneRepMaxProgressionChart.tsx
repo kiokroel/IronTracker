@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { TrendingUp, Dumbbell, Calendar, Target } from 'lucide-react';
+import React, { useState, memo } from 'react';
+import { TrendingUp, Dumbbell, Target } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { OneRepMaxFormula, calculate1RMByFormula } from '@/utils/fitness';
 
@@ -14,17 +14,10 @@ interface OneRepMaxProgressionChartProps {
   records: Record<string, ExerciseSetRecord[]>;
 }
 
-export const OneRepMaxProgressionChart: React.FC<OneRepMaxProgressionChartProps> = ({ records }) => {
+export const OneRepMaxProgressionChart: React.FC<OneRepMaxProgressionChartProps> = memo(({ records }) => {
   const [selectedExercise, setSelectedExercise] = useState<string>('bench_press');
   const [selectedFormula, setSelectedFormula] = useState<OneRepMaxFormula>('average');
-  const [hoveredPoint, setHoveredPoint] = useState<{
-    date: string;
-    weight: number;
-    reps: number;
-    oneRepMax: number;
-    x: number;
-    y: number;
-  } | null>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const exercises = [
     { id: 'bench_press', label: 'Bench Press' },
@@ -241,31 +234,33 @@ export const OneRepMaxProgressionChart: React.FC<OneRepMaxProgressionChartProps>
               const x = getX(idx);
               const y = getY(d.oneRepMax);
               const isBest = d.oneRepMax === best1RM;
+              const isHovered = hoveredIndex === idx;
 
               return (
-                <g
-                  key={idx}
-                  className="cursor-pointer"
-                  onMouseEnter={() =>
-                    setHoveredPoint({
-                      date: d.date,
-                      weight: d.weight,
-                      reps: d.reps,
-                      oneRepMax: d.oneRepMax,
-                      x,
-                      y,
-                    })
-                  }
-                  onMouseLeave={() => setHoveredPoint(null)}
-                >
+                <g key={idx}>
+                  {/* Active Point Glow */}
+                  {isHovered && (
+                    <circle
+                      cx={x}
+                      cy={y}
+                      r={isBest ? 11 : 9.5}
+                      fill="none"
+                      stroke="#f59e0b"
+                      strokeWidth="2"
+                      opacity="0.4"
+                      pointerEvents="none"
+                    />
+                  )}
+
+                  {/* Visible Point */}
                   <circle
                     cx={x}
                     cy={y}
-                    r={isBest ? 6 : 4.5}
-                    fill={isBest ? '#fbbf24' : '#f59e0b'}
+                    r={isHovered ? (isBest ? 7.5 : 6.5) : (isBest ? 6 : 4.5)}
+                    fill={isBest || isHovered ? '#fbbf24' : '#f59e0b'}
                     stroke="#18181b"
-                    strokeWidth="2.5"
-                    className="transition-transform hover:scale-125"
+                    strokeWidth={isHovered ? 2 : 2.5}
+                    pointerEvents="none"
                   />
 
                   {/* X Axis Label */}
@@ -273,42 +268,125 @@ export const OneRepMaxProgressionChart: React.FC<OneRepMaxProgressionChartProps>
                     x={x}
                     y={height - padding.bottom + 18}
                     textAnchor="middle"
-                    className="text-[10px] font-mono fill-zinc-500"
+                    className={`text-[10px] font-mono select-none pointer-events-none transition-colors ${
+                      isHovered ? 'fill-amber-400 font-bold' : 'fill-zinc-500'
+                    }`}
                   >
                     {d.date.length > 5 ? d.date.slice(5) : d.date}
                   </text>
+
+                  {/* Wide Stable Hitbox (r=18) */}
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r={18}
+                    fill="transparent"
+                    className="cursor-pointer"
+                    onMouseEnter={() => setHoveredIndex(idx)}
+                    onMouseLeave={() => setHoveredIndex(null)}
+                  />
                 </g>
               );
             })}
-          </svg>
 
-          {/* Tooltip */}
-          {hoveredPoint && (
-            <div
-              className="absolute z-20 pointer-events-none rounded-lg border border-amber-500/40 bg-zinc-950/95 p-2.5 shadow-xl backdrop-blur-sm"
-              style={{
-                left: `${Math.min(width - 160, Math.max(10, hoveredPoint.x - 70))}px`,
-                top: `${Math.max(10, hoveredPoint.y - 75)}px`,
-              }}
-            >
-              <div className="flex items-center gap-1.5 text-xs text-zinc-400">
-                <Calendar className="h-3 w-3 text-amber-500" />
-                <span>{hoveredPoint.date}</span>
-              </div>
-              <div className="mt-1 flex items-baseline gap-2">
-                <span className="font-mono text-sm font-bold text-amber-400">
-                  {hoveredPoint.oneRepMax} kg 1RM
-                </span>
-                <span className="text-[11px] text-zinc-400 font-mono">
-                  ({hoveredPoint.weight}kg × {hoveredPoint.reps})
-                </span>
-              </div>
-            </div>
-          )}
+            {/* In-SVG Vector Tooltip with pointer arrow & boundary safety */}
+            {hoveredIndex !== null && data[hoveredIndex] && (() => {
+              const pt = data[hoveredIndex];
+              const px = getX(hoveredIndex);
+              const py = getY(pt.oneRepMax);
+              const tooltipWidth = 210;
+              const tooltipHeight = 56;
+
+              let tx = px - tooltipWidth / 2;
+              if (tx < padding.left) tx = padding.left;
+              if (tx + tooltipWidth > width - padding.right) tx = width - padding.right - tooltipWidth;
+
+              const isAbove = py - tooltipHeight - 16 >= padding.top;
+              const ty = isAbove ? py - tooltipHeight - 14 : py + 16;
+              const arrowX = Math.max(tx + 14, Math.min(px, tx + tooltipWidth - 14));
+              const textCenterX = tx + tooltipWidth / 2;
+
+              return (
+                <g pointerEvents="none" className="transition-opacity duration-150">
+                  {/* Vertical Crosshair Guideline */}
+                  <line
+                    x1={px}
+                    y1={padding.top}
+                    x2={px}
+                    y2={height - padding.bottom}
+                    stroke="#f59e0b"
+                    strokeWidth="1"
+                    strokeDasharray="2 3"
+                    opacity="0.35"
+                  />
+
+                  {/* Tooltip Background Card */}
+                  <rect
+                    x={tx}
+                    y={ty}
+                    width={tooltipWidth}
+                    height={tooltipHeight}
+                    rx={8}
+                    fill="#09090b"
+                    stroke="#f59e0b"
+                    strokeWidth={1}
+                    opacity={0.97}
+                  />
+
+                  {/* Pointer Arrow to target point */}
+                  {isAbove ? (
+                    <polygon
+                      points={`${arrowX - 7},${ty + tooltipHeight} ${arrowX + 7},${ty + tooltipHeight} ${arrowX},${ty + tooltipHeight + 7}`}
+                      fill="#09090b"
+                      stroke="#f59e0b"
+                      strokeWidth={1}
+                    />
+                  ) : (
+                    <polygon
+                      points={`${arrowX - 7},${ty} ${arrowX + 7},${ty} ${arrowX},${ty - 7}`}
+                      fill="#09090b"
+                      stroke="#f59e0b"
+                      strokeWidth={1}
+                    />
+                  )}
+
+                  {/* Line 1: Date */}
+                  <text
+                    x={textCenterX}
+                    y={ty + 20}
+                    textAnchor="middle"
+                    fill="#a1a1aa"
+                    fontSize="11"
+                    fontFamily="ui-sans-serif, system-ui, sans-serif"
+                    className="select-none font-medium"
+                  >
+                    {pt.date}
+                  </text>
+
+                  {/* Line 2: 1RM and Set Breakdown */}
+                  <text
+                    x={textCenterX}
+                    y={ty + 40}
+                    textAnchor="middle"
+                    fill="#fbbf24"
+                    fontSize="12.5"
+                    fontWeight="bold"
+                    fontFamily="ui-monospace, monospace"
+                    className="select-none"
+                  >
+                    {pt.oneRepMax} kg 1RM{' '}
+                    <tspan fill="#a1a1aa" fontSize="11" fontWeight="normal">
+                      ({pt.weight}kg × {pt.reps})
+                    </tspan>
+                  </text>
+                </g>
+              );
+            })()}
+          </svg>
         </div>
       </CardContent>
     </Card>
   );
-};
+});
 
 export default OneRepMaxProgressionChart;

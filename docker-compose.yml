@@ -139,8 +139,6 @@ services:
     container_name: irontracker-workout-service
     restart: unless-stopped
     command: python -m uvicorn workout_service.src.main:app --host 0.0.0.0 --port 8000
-    ports:
-      - "${WORKOUT_SERVICE_PORT:-8000}:8000"
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
@@ -199,8 +197,6 @@ services:
     container_name: irontracker-leaderboard-service
     restart: unless-stopped
     command: python -m uvicorn leaderboard_service.src.main:app --host 0.0.0.0 --port 8002
-    ports:
-      - "${LEADERBOARD_SERVICE_PORT:-8002}:8002"
     environment:
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -304,8 +300,6 @@ services:
     container_name: irontracker-users-service
     restart: unless-stopped
     command: python -m uvicorn users_service.src.main:app --host 0.0.0.0 --port 8001
-    ports:
-      - "${USERS_PORT:-8001}:8001"
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
@@ -334,8 +328,6 @@ services:
     image: irontracker-frontend:latest
     container_name: irontracker-frontend
     restart: unless-stopped
-    ports:
-      - "${FRONTEND_PORT:-3000}:80"
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:80/health || exit 1"]
       interval: 10s
