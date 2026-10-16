@@ -10,9 +10,12 @@ import {
   isStrengthMetrics,
   isCardioMetrics,
 } from '@/types/workout';
+import { Exercise } from '@/types/exercise';
+import { exercisesApi } from '@/api/exercises';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { CustomExerciseModal } from './CustomExerciseModal';
 import { calculateOneRepMax, calculateDetailedSetsTonnage, formatWeight } from '@/utils/fitness';
 import { toLocalDatetimeInputValue, toUtcIsoString } from '@/utils/date';
 import { useWorkoutStore } from '@/store/useWorkoutStore';
@@ -25,8 +28,6 @@ export interface WorkoutFormModalProps {
   onSuccess?: () => void;
 }
 
-type MovementType = 'bench_press' | 'squats' | 'deadlift' | 'overhead_press' | 'cardio';
-
 export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
   isOpen,
   onClose,
@@ -38,8 +39,12 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
 
   const isEditMode = Boolean(workoutToEdit);
 
+  // Exercise library & custom modal
+  const [availableExercises, setAvailableExercises] = useState<Exercise[]>([]);
+  const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
+
   // Form state
-  const [movement, setMovement] = useState<MovementType>('bench_press');
+  const [movement, setMovement] = useState<string>('bench_press');
   const [datetimeLocal, setDatetimeLocal] = useState<string>(toLocalDatetimeInputValue());
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -60,6 +65,14 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
   const [durationMinutes, setDurationMinutes] = useState<string>('25');
   const [heartRate, setHeartRate] = useState<string>('');
   const [caloriesBurned, setCaloriesBurned] = useState<string>('');
+
+  // Fetch exercises on open
+  useEffect(() => {
+    if (isOpen) {
+      exercisesApi.getExercises().then(setAvailableExercises).catch(() => {});
+    }
+  }, [isOpen]);
+
 
   // Populate form on edit / open
   useEffect(() => {
@@ -256,6 +269,21 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
     return null;
   }, [distanceKm, durationMinutes]);
 
+  // Selected exercise lookup and cardio detection
+  const selectedExercise = useMemo(() => {
+    return availableExercises.find(
+      (e) => e.name.toLowerCase() === movement.toLowerCase() || e.id === movement
+    );
+  }, [availableExercises, movement]);
+
+  const isCardio = useMemo(() => {
+    if (movement === 'cardio') return true;
+    if (selectedExercise) {
+      return selectedExercise.category === 'cardio';
+    }
+    return false;
+  }, [movement, selectedExercise]);
+
   // Submit handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -267,7 +295,7 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
       let metricsPayload: WorkoutMetrics;
       let workoutType = movement;
 
-      if (movement !== 'cardio') {
+      if (!isCardio) {
         // Validate sets
         if (sets.length === 0) {
           throw new Error(t('workouts.validationAddSet'));
@@ -330,12 +358,24 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
             detailed_sets: detailedSetsPayload,
             deadlift_style: deadliftStyle,
           };
-        } else {
-          // overhead_press -> mapped to strength contract
+        } else if (movement === 'overhead_press') {
           workoutType = 'overhead_press';
           metricsPayload = {
             exercise_type: 'strength',
             exercise_name: 'overhead_press',
+            weight: maxWeight,
+            sets: totalSetsCount,
+            reps: primaryReps,
+            rpe: primaryRpe,
+            detailed_sets: detailedSetsPayload,
+          };
+        } else {
+          // Custom or additional library strength exercise
+          const exName = selectedExercise ? selectedExercise.name : movement;
+          workoutType = 'strength';
+          metricsPayload = {
+            exercise_type: 'strength',
+            exercise_name: exName,
             weight: maxWeight,
             sets: totalSetsCount,
             reps: primaryReps,
@@ -354,16 +394,18 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
           throw new Error(t('workouts.validationDuration'));
         }
 
+        const exName = selectedExercise ? selectedExercise.name : 'Cardio Run';
         workoutType = 'cardio';
         metricsPayload = {
           exercise_type: 'cardio',
-          exercise_name: 'Cardio Run',
+          exercise_name: exName,
           distance_km: dist,
           duration_minutes: dur,
           heart_rate: heartRate ? parseInt(heartRate, 10) : undefined,
           calories_burned: caloriesBurned ? parseInt(caloriesBurned, 10) : undefined,
         };
       }
+
 
       if (isEditMode && workoutToEdit) {
         const updatePayload: WorkoutUpdate = {
@@ -416,19 +458,64 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
         {/* Movement selection & Date */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300">
-              {t('workouts.activityMovement')}
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                {t('workouts.activityMovement')}
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsCustomModalOpen(true)}
+                className="text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1 transition-colors font-medium"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {t('exercises.addCustomShort')}
+              </button>
+            </div>
             <select
               value={movement}
-              onChange={(e) => setMovement(e.target.value as MovementType)}
+              onChange={(e) => setMovement(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-lg text-sm bg-zinc-900 border border-zinc-800 text-zinc-100 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none transition-colors"
             >
-              <option value="bench_press">{t('workouts.bench_press')}</option>
-              <option value="squats">{t('workouts.squats')}</option>
-              <option value="deadlift">{t('workouts.deadlift')}</option>
-              <option value="overhead_press">{t('workouts.overhead_press')}</option>
-              <option value="cardio">{t('workouts.cardioTreadmill')}</option>
+              <optgroup label={t('exercises.systemBadge')}>
+                <option value="bench_press">{t('workouts.bench_press')}</option>
+                <option value="squats">{t('workouts.squats')}</option>
+                <option value="deadlift">{t('workouts.deadlift')}</option>
+                <option value="overhead_press">{t('workouts.overhead_press')}</option>
+                <option value="cardio">{t('workouts.cardioTreadmill')}</option>
+                {availableExercises
+                  .filter(
+                    (ex) =>
+                      !ex.is_custom &&
+                      ![
+                        'bench_press',
+                        'squats',
+                        'deadlift',
+                        'overhead_press',
+                        'cardio',
+                        'жим штанги лежа',
+                        'приседания со штангой',
+                        'становая тяга',
+                        'армейский жим стоя',
+                        'беговая дорожка',
+                      ].includes(ex.name.toLowerCase())
+                  )
+                  .map((ex) => (
+                    <option key={ex.id} value={ex.name}>
+                      {ex.name}
+                    </option>
+                  ))}
+              </optgroup>
+              {availableExercises.some((ex) => ex.is_custom) && (
+                <optgroup label={t('exercises.customBadge')}>
+                  {availableExercises
+                    .filter((ex) => ex.is_custom)
+                    .map((ex) => (
+                      <option key={ex.id} value={ex.name}>
+                        ⭐ {ex.name}
+                      </option>
+                    ))}
+                </optgroup>
+              )}
             </select>
           </div>
 
@@ -449,7 +536,8 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
         </div>
 
         {/* STRENGTH CONSTRUCTOR */}
-        {movement !== 'cardio' ? (
+        {!isCardio ? (
+
           <div className="space-y-4">
             {/* Real-time telemetry summary banner */}
             <div className="rounded-xl bg-zinc-950/80 border border-zinc-800 p-3.5 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
@@ -625,66 +713,68 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
             </div>
 
             {/* Movement-specific customization options */}
-            <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/40 p-3.5 space-y-3">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 block">
-                {t('workouts.movementSpecifics')}
-              </span>
+            {['bench_press', 'squats', 'deadlift', 'overhead_press'].includes(movement) && (
+              <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/40 p-3.5 space-y-3">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 block">
+                  {t('workouts.movementSpecifics')}
+                </span>
 
-              {movement === 'bench_press' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Input
-                    label={t('workouts.gripWidthLabel')}
-                    type="number"
-                    step="1"
-                    min="10"
-                    max="120"
-                    placeholder={t('workouts.gripWidthPlaceholder')}
-                    value={gripWidth}
-                    onChange={(e) => setGripWidth(e.target.value)}
-                    helperText={t('workouts.gripWidthHelper')}
-                  />
-                </div>
-              )}
+                {movement === 'bench_press' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Input
+                      label={t('workouts.gripWidthLabel')}
+                      type="number"
+                      step="1"
+                      min="10"
+                      max="120"
+                      placeholder={t('workouts.gripWidthPlaceholder')}
+                      value={gripWidth}
+                      onChange={(e) => setGripWidth(e.target.value)}
+                      helperText={t('workouts.gripWidthHelper')}
+                    />
+                  </div>
+                )}
 
-              {movement === 'squats' && (
-                <div className="space-y-1.5 max-w-xs">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300">
-                    {t('workouts.stanceWidthLabel')}
-                  </label>
-                  <select
-                    value={stance}
-                    onChange={(e) => setStance(e.target.value as 'narrow' | 'medium' | 'wide')}
-                    className="w-full px-3.5 py-2 rounded-lg text-xs bg-zinc-900 border border-zinc-800 text-zinc-100 focus:border-amber-500 focus:outline-none"
-                  >
-                    <option value="narrow">{t('workouts.stanceNarrow')}</option>
-                    <option value="medium">{t('workouts.stanceMedium')}</option>
-                    <option value="wide">{t('workouts.stanceWide')}</option>
-                  </select>
-                </div>
-              )}
+                {movement === 'squats' && (
+                  <div className="space-y-1.5 max-w-xs">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                      {t('workouts.stanceWidthLabel')}
+                    </label>
+                    <select
+                      value={stance}
+                      onChange={(e) => setStance(e.target.value as 'narrow' | 'medium' | 'wide')}
+                      className="w-full px-3.5 py-2 rounded-lg text-xs bg-zinc-900 border border-zinc-800 text-zinc-100 focus:border-amber-500 focus:outline-none"
+                    >
+                      <option value="narrow">{t('workouts.stanceNarrow')}</option>
+                      <option value="medium">{t('workouts.stanceMedium')}</option>
+                      <option value="wide">{t('workouts.stanceWide')}</option>
+                    </select>
+                  </div>
+                )}
 
-              {movement === 'deadlift' && (
-                <div className="space-y-1.5 max-w-xs">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300">
-                    {t('workouts.deadliftStyleLabel')}
-                  </label>
-                  <select
-                    value={deadliftStyle}
-                    onChange={(e) => setDeadliftStyle(e.target.value as 'conventional' | 'sumo')}
-                    className="w-full px-3.5 py-2 rounded-lg text-xs bg-zinc-900 border border-zinc-800 text-zinc-100 focus:border-amber-500 focus:outline-none"
-                  >
-                    <option value="conventional">{t('workouts.deadliftConventional')}</option>
-                    <option value="sumo">{t('workouts.deadliftSumo')}</option>
-                  </select>
-                </div>
-              )}
+                {movement === 'deadlift' && (
+                  <div className="space-y-1.5 max-w-xs">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                      {t('workouts.deadliftStyleLabel')}
+                    </label>
+                    <select
+                      value={deadliftStyle}
+                      onChange={(e) => setDeadliftStyle(e.target.value as 'conventional' | 'sumo')}
+                      className="w-full px-3.5 py-2 rounded-lg text-xs bg-zinc-900 border border-zinc-800 text-zinc-100 focus:border-amber-500 focus:outline-none"
+                    >
+                      <option value="conventional">{t('workouts.deadliftConventional')}</option>
+                      <option value="sumo">{t('workouts.deadliftSumo')}</option>
+                    </select>
+                  </div>
+                )}
 
-              {movement === 'overhead_press' && (
-                <p className="text-xs text-zinc-400">
-                  {t('workouts.overheadPressDesc')}
-                </p>
-              )}
-            </div>
+                {movement === 'overhead_press' && (
+                  <p className="text-xs text-zinc-400">
+                    {t('workouts.overheadPressDesc')}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           /* CARDIO FORM */
@@ -754,8 +844,19 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
           </Button>
         </div>
       </form>
+
+      {/* Custom Exercise Creation Modal */}
+      <CustomExerciseModal
+        isOpen={isCustomModalOpen}
+        onClose={() => setIsCustomModalOpen(false)}
+        onCreated={(created) => {
+          setAvailableExercises((prev) => [...prev, created]);
+          setMovement(created.name);
+        }}
+      />
     </Modal>
   );
 };
 
 export default WorkoutFormModal;
+

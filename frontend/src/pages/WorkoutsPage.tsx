@@ -23,6 +23,7 @@ import {
   WorkoutFormModal,
   WorkoutFilters,
   DeleteWorkoutModal,
+  CustomExerciseModal,
 } from '@/components/workouts';
 import {
   calculateOneRepMax,
@@ -56,6 +57,7 @@ export const WorkoutsPage: React.FC = () => {
 
   // Modal states
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isCustomExerciseModalOpen, setIsCustomExerciseModalOpen] = useState(false);
   const [workoutToEdit, setWorkoutToEdit] = useState<Workout | null>(null);
   const [workoutToDelete, setWorkoutToDelete] = useState<Workout | null>(null);
 
@@ -298,10 +300,21 @@ export const WorkoutsPage: React.FC = () => {
             {t('workouts.subtitle')}
           </p>
         </div>
-        <Button onClick={handleOpenCreateModal} variant="primary" size="md" className="gap-2 shrink-0">
-          <Plus className="w-4 h-4" />
-          <span>{t('workouts.logWorkout')}</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => setIsCustomExerciseModalOpen(true)}
+            variant="secondary"
+            size="md"
+            className="gap-2 shrink-0 border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
+          >
+            <Plus className="w-4 h-4 text-amber-400" />
+            <span>{t('exercises.addCustomShort')}</span>
+          </Button>
+          <Button onClick={handleOpenCreateModal} variant="primary" size="md" className="gap-2 shrink-0">
+            <Plus className="w-4 h-4" />
+            <span>{t('workouts.logWorkout')}</span>
+          </Button>
+        </div>
       </div>
 
       {/* Athlete Stats Strip */}
@@ -486,6 +499,15 @@ export const WorkoutsPage: React.FC = () => {
         workout={workoutToDelete}
         onConfirm={handleConfirmDelete}
         isDeleting={isDeleting}
+      />
+
+      {/* Custom Exercise Modal */}
+      <CustomExerciseModal
+        isOpen={isCustomExerciseModalOpen}
+        onClose={() => setIsCustomExerciseModalOpen(false)}
+        onCreated={() => {
+          setIsCustomExerciseModalOpen(false);
+        }}
       />
     </div>
   );

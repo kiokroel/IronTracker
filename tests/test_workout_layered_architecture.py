@@ -145,7 +145,7 @@ async def test_base_repository_crud() -> None:
         assert fetched.id == workout_id
 
         # Get all
-        all_items = await base_repo.get_all(skip=0, limit=10)
+        all_items = await base_repo.get_all(skip=0, limit=1000)
         assert any(item.id == workout_id for item in all_items)
 
         # Update

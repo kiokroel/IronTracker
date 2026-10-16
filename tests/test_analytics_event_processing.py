@@ -341,7 +341,7 @@ def test_calculate_max_1rm_detailed_sets() -> None:
         reps=8,
         detailed_sets=[
             StrengthSet(set_number=1, weight=60.0, reps=10, is_warmup=True),  # epley = 80.0
-            StrengthSet(set_number=2, weight=80.0, reps=8, is_warmup=True),   # epley = 101.33
+            StrengthSet(set_number=2, weight=80.0, reps=8, is_warmup=True),  # epley = 101.33
         ],
     )
     assert calculate_max_1rm(bench_all_warmup, method="epley") == 101.33
@@ -590,11 +590,11 @@ async def test_consumer_lifecycle_start_stop() -> None:
         )
 
         await consumer.start()
-        assert consumer._running is True
+        assert consumer._running
         mock_kafka.start.assert_awaited_once()
 
         await consumer.stop()
-        assert consumer._running is False
+        assert not consumer._running
         mock_kafka.stop.assert_awaited_once()
 
 

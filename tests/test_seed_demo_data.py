@@ -115,9 +115,10 @@ def test_generate_workouts_for_user_validation() -> None:
 
 def test_parse_cli_args_defaults() -> None:
     """Verify CLI argument parsing defaults."""
-    with patch("argparse.ArgumentParser.parse_args", return_value=argparse.Namespace(
-        pg_url=None, redis_url=None, mongo_url=None, mongo_db=None
-    )):
+    with patch(
+        "argparse.ArgumentParser.parse_args",
+        return_value=argparse.Namespace(pg_url=None, redis_url=None, mongo_url=None, mongo_db=None),
+    ):
         args = parse_cli_args()
         assert args.pg_url is None
         assert args.redis_url is None

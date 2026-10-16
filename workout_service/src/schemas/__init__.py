@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+from workout_service.src.schemas.exercise import (
+    CategoryType,
+    EquipmentType,
+    ExerciseBase,
+    ExerciseCreate,
+    ExerciseResponse,
+    ExerciseUpdate,
+    MuscleGroupType,
+)
 from workout_service.src.schemas.workout import (
     BenchPressMetrics,
     CardioExerciseMetrics,
@@ -21,7 +30,14 @@ from workout_service.src.schemas.workout import (
 __all__ = [
     "BenchPressMetrics",
     "CardioExerciseMetrics",
+    "CategoryType",
     "DeadliftMetrics",
+    "EquipmentType",
+    "ExerciseBase",
+    "ExerciseCreate",
+    "ExerciseResponse",
+    "ExerciseUpdate",
+    "MuscleGroupType",
     "RunningMetrics",
     "SetDetail",
     "SquatMetrics",
