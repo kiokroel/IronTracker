@@ -24,7 +24,12 @@ import {
   WorkoutFilters,
   DeleteWorkoutModal,
 } from '@/components/workouts';
-import { calculateOneRepMax, calculateSetTonnage, formatWeight } from '@/utils/fitness';
+import {
+  calculateOneRepMax,
+  calculateSetTonnage,
+  calculateDetailedSetsTonnage,
+  formatWeight,
+} from '@/utils/fitness';
 import { getWorkoutDateKey, formatDateGroupHeading } from '@/utils/date';
 import { formatExerciseName } from '@/utils/exercise';
 
@@ -152,8 +157,18 @@ export const WorkoutsPage: React.FC = () => {
 
     for (const w of userWorkouts) {
       if (isStrengthMetrics(w.metrics)) {
-        totalTonnage += calculateSetTonnage(w.metrics.weight, w.metrics.sets, w.metrics.reps);
-        const e1rm = calculateOneRepMax(w.metrics.weight, w.metrics.reps);
+        const itemTonnage = w.metrics.detailed_sets && w.metrics.detailed_sets.length > 0
+          ? calculateDetailedSetsTonnage(w.metrics.detailed_sets)
+          : calculateSetTonnage(w.metrics.weight, w.metrics.sets, w.metrics.reps);
+        totalTonnage += itemTonnage;
+
+        const detailedSets = w.metrics.detailed_sets;
+        const workingSets = detailedSets ? detailedSets.filter((s) => !s.is_warmup) : [];
+        const candidateSets = workingSets.length > 0 ? workingSets : (detailedSets || []);
+        const e1rm = candidateSets.length > 0
+          ? Math.max(...candidateSets.map((s) => calculateOneRepMax(s.weight, s.reps)))
+          : calculateOneRepMax(w.metrics.weight, w.metrics.reps);
+
         if (e1rm > heaviest1RM) {
           heaviest1RM = e1rm;
           heaviestExercise = formatExerciseName(w.type || w.metrics.exercise_type, t);
@@ -193,7 +208,10 @@ export const WorkoutsPage: React.FC = () => {
       // Calculate day tonnage
       const dayTonnage = items.reduce((sum, item) => {
         if (isStrengthMetrics(item.metrics)) {
-          return sum + calculateSetTonnage(item.metrics.weight, item.metrics.sets, item.metrics.reps);
+          const itemTonnage = item.metrics.detailed_sets && item.metrics.detailed_sets.length > 0
+            ? calculateDetailedSetsTonnage(item.metrics.detailed_sets)
+            : calculateSetTonnage(item.metrics.weight, item.metrics.sets, item.metrics.reps);
+          return sum + itemTonnage;
         }
         return sum;
       }, 0);

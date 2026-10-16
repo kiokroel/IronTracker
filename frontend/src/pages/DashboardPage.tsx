@@ -236,7 +236,26 @@ export const DashboardPage: React.FC = () => {
                     {formatExerciseName(workout.type || workout.metrics.exercise_type, t)}
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    {'weight' in workout.metrics && 'sets' in workout.metrics && 'reps' in workout.metrics ? (
+                    {'detailed_sets' in workout.metrics && workout.metrics.detailed_sets && workout.metrics.detailed_sets.length > 0 ? (() => {
+                      const dSets = workout.metrics.detailed_sets;
+                      const wSets = dSets.filter((s) => !s.is_warmup);
+                      const warmupsCount = dSets.length - wSets.length;
+                      const candidate = wSets.length > 0 ? wSets : dSets;
+                      const topSet = candidate.reduce((p, c) => (c.weight > p.weight ? c : p), candidate[0]);
+                      return (
+                        <span className="block text-zinc-300">
+                          <span className="font-semibold text-white">
+                            {topSet.weight} {t('common.kg')} × {topSet.reps} {t('common.reps')}
+                          </span>
+                          {wSets.length > 1 && (
+                            <span className="text-zinc-400"> ({wSets.length} {t('workouts.workingCount')})</span>
+                          )}
+                          {warmupsCount > 0 && (
+                            <span className="text-amber-400/90"> · {warmupsCount} {t('workouts.warmupCount')}</span>
+                          )}
+                        </span>
+                      );
+                    })() : 'weight' in workout.metrics && 'sets' in workout.metrics && 'reps' in workout.metrics ? (
                       <>
                         {workout.metrics.weight} {t('common.kg')} × {workout.metrics.sets} {t('common.sets')} × {workout.metrics.reps} {t('common.reps')}
                       </>
@@ -250,14 +269,27 @@ export const DashboardPage: React.FC = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  {'weight' in workout.metrics && 'reps' in workout.metrics && (
+                  {'detailed_sets' in workout.metrics && workout.metrics.detailed_sets && workout.metrics.detailed_sets.length > 0 ? (() => {
+                    const dSets = workout.metrics.detailed_sets;
+                    const wSets = dSets.filter((s) => !s.is_warmup);
+                    const candidate = wSets.length > 0 ? wSets : dSets;
+                    const best1rm = Math.max(...candidate.map((s) => calculateOneRepMax(s.weight, s.reps)));
+                    return (
+                      <div className="flex items-center justify-between text-xs pt-2 border-t border-zinc-800/80 text-zinc-400">
+                        <span>{t('analytics.estimatedMax')}</span>
+                        <span className="font-bold text-amber-400">
+                          {best1rm} {t('common.kg')}
+                        </span>
+                      </div>
+                    );
+                  })() : 'weight' in workout.metrics && 'reps' in workout.metrics ? (
                     <div className="flex items-center justify-between text-xs pt-2 border-t border-zinc-800/80 text-zinc-400">
                       <span>{t('analytics.estimatedMax')}</span>
                       <span className="font-bold text-amber-400">
                         {calculateOneRepMax(workout.metrics.weight, workout.metrics.reps)} {t('common.kg')}
                       </span>
                     </div>
-                  )}
+                  ) : null}
                 </CardContent>
               </Card>
             ))}

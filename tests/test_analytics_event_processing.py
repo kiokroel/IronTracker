@@ -289,6 +289,64 @@ def test_calculate_max_1rm_across_multiple_sets() -> None:
     assert max_epley == 143.0
 
 
+def test_calculate_workout_tonnage_detailed_sets() -> None:
+    """Verify analytics tonnage calculation strictly filters out warmup sets."""
+    from shared.contracts.src import StrengthSet
+
+    bench = BenchPressMetrics(
+        weight=120.0,
+        sets=3,
+        reps=3,
+        detailed_sets=[
+            StrengthSet(set_number=1, weight=50.0, reps=10, is_warmup=True),
+            StrengthSet(set_number=2, weight=100.0, reps=5, is_warmup=False),
+            StrengthSet(set_number=3, weight=120.0, reps=3, is_warmup=False),
+        ],
+    )
+    # Only 100*5 + 120*3 = 500 + 360 = 860.0
+    assert calculate_workout_tonnage(bench) == 860.0
+
+    # If all are warmup sets -> 0.0
+    bench_all_warmup = BenchPressMetrics(
+        weight=50.0,
+        sets=1,
+        reps=10,
+        detailed_sets=[StrengthSet(set_number=1, weight=50.0, reps=10, is_warmup=True)],
+    )
+    assert calculate_workout_tonnage(bench_all_warmup) == 0.0
+
+
+def test_calculate_max_1rm_detailed_sets() -> None:
+    """Verify calculate_max_1rm selects highest non-warmup set or best overall set."""
+    from shared.contracts.src import StrengthSet
+
+    # Warmup has weight 140x1 (epley=140), working set is 130x3 (epley=143)
+    bench = BenchPressMetrics(
+        weight=130.0,
+        sets=2,
+        reps=3,
+        detailed_sets=[
+            StrengthSet(set_number=1, weight=60.0, reps=10, is_warmup=True),
+            StrengthSet(set_number=2, weight=100.0, reps=5, is_warmup=False),  # epley = 116.67
+            StrengthSet(set_number=3, weight=120.0, reps=5, is_warmup=False),  # epley = 140.0
+        ],
+    )
+    max_epley = calculate_max_1rm(bench, method="epley")
+    assert max_epley == 140.0
+
+    # If all sets are warmup, it selects the best among all sets
+    bench_all_warmup = BenchPressMetrics(
+        weight=80.0,
+        sets=2,
+        reps=8,
+        detailed_sets=[
+            StrengthSet(set_number=1, weight=60.0, reps=10, is_warmup=True),  # epley = 80.0
+            StrengthSet(set_number=2, weight=80.0, reps=8, is_warmup=True),   # epley = 101.33
+        ],
+    )
+    assert calculate_max_1rm(bench_all_warmup, method="epley") == 101.33
+
+
 # ==============================================================================
 # 3. Pydantic Time Series Point & Document Creation Tests
 # ==============================================================================

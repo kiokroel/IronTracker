@@ -9,6 +9,14 @@ export type ExerciseType =
   | 'strength'
   | 'cardio';
 
+export interface StrengthSet {
+  set_number: number;
+  weight: number;
+  reps: number;
+  rpe?: number;
+  is_warmup?: boolean;
+}
+
 export interface BenchPressMetrics {
   exercise_type: 'bench_press' | 'benchpress';
   weight: number;
@@ -16,6 +24,7 @@ export interface BenchPressMetrics {
   reps: number;
   rpe?: number;
   grip_width_cm?: number;
+  detailed_sets?: StrengthSet[];
 }
 
 export interface SquatMetrics {
@@ -25,6 +34,7 @@ export interface SquatMetrics {
   reps: number;
   rpe?: number;
   stance?: 'narrow' | 'medium' | 'wide';
+  detailed_sets?: StrengthSet[];
 }
 
 export interface DeadliftMetrics {
@@ -34,6 +44,7 @@ export interface DeadliftMetrics {
   reps: number;
   rpe?: number;
   deadlift_style?: 'conventional' | 'sumo';
+  detailed_sets?: StrengthSet[];
 }
 
 export interface StrengthExerciseMetrics {
@@ -43,6 +54,7 @@ export interface StrengthExerciseMetrics {
   sets: number;
   reps: number;
   rpe?: number;
+  detailed_sets?: StrengthSet[];
 }
 
 export interface CardioExerciseMetrics {
@@ -104,6 +116,7 @@ export interface WorkoutSetRow {
   weight: number;
   reps: number;
   rpe?: number;
+  is_warmup?: boolean;
 }
 
 export interface WorkoutFiltersState {

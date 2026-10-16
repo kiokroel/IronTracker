@@ -30,6 +30,7 @@ import {
 import {
   calculateAverageOneRepMax,
   calculateSetTonnage,
+  calculateDetailedSetsTonnage,
   formatWeight,
 } from '@/utils/fitness';
 
@@ -67,11 +68,18 @@ export const AnalyticsPage: React.FC = () => {
 
         if (isStrengthMetrics(m)) {
           countStrength++;
-          const tonnage = calculateSetTonnage(m.weight, m.sets, m.reps);
+          const tonnage = m.detailed_sets && m.detailed_sets.length > 0
+            ? calculateDetailedSetsTonnage(m.detailed_sets)
+            : calculateSetTonnage(m.weight, m.sets, m.reps);
           sessionVolume += tonnage;
           sumTonnage += tonnage;
 
-          const est1RM = calculateAverageOneRepMax(m.weight, m.reps);
+          const detailedSets = m.detailed_sets;
+          const workingSets = detailedSets ? detailedSets.filter((s) => !s.is_warmup) : [];
+          const candidateSets = workingSets.length > 0 ? workingSets : (detailedSets || []);
+          const est1RM = candidateSets.length > 0
+            ? Math.max(...candidateSets.map((s) => calculateAverageOneRepMax(s.weight, s.reps)))
+            : calculateAverageOneRepMax(m.weight, m.reps);
           if (est1RM > highest1RM) {
             highest1RM = est1RM;
           }

@@ -1,9 +1,14 @@
-import React from 'react';
-import { Calendar, Flame, Dumbbell, Activity, Heart, Pencil, Trash2, ShieldCheck, Zap } from 'lucide-react';
+import React, { useState } from 'react';
+import { Calendar, Flame, Dumbbell, Activity, Heart, Pencil, Trash2, ShieldCheck, Zap, ChevronDown, ChevronUp } from 'lucide-react';
 import { Workout, isStrengthMetrics, isCardioMetrics } from '@/types/workout';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { calculateOneRepMax, calculateSetTonnage, formatWeight } from '@/utils/fitness';
+import {
+  calculateOneRepMax,
+  calculateSetTonnage,
+  calculateDetailedSetsTonnage,
+  formatWeight,
+} from '@/utils/fitness';
 import { formatWorkoutDate } from '@/utils/date';
 import { formatExerciseName } from '@/utils/exercise';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -20,6 +25,7 @@ export const WorkoutCard: React.FC<WorkoutCardProps> = ({
   onEdit,
   onDelete,
 }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
   const currentUser = useAuthStore((state) => state.user);
   const { t, locale } = useLocaleStore();
 
@@ -130,65 +136,205 @@ export const WorkoutCard: React.FC<WorkoutCardProps> = ({
       </CardHeader>
 
       <CardContent className="space-y-3 px-5 pb-5">
-        {isStrengthMetrics(workout.metrics) && (
-          <>
-            {/* Primary work sets summary */}
-            <div className="rounded-lg bg-zinc-950/70 border border-zinc-800/50 p-3 flex justify-between items-center text-sm">
-              <span className="text-zinc-400 text-xs font-medium">{t('workouts.workSets')}</span>
-              <span className="font-bold text-white font-mono tracking-tight text-sm">
-                {workout.metrics.sets} × {workout.metrics.reps} @ {workout.metrics.weight} {t('common.kg')}
-              </span>
-            </div>
+        {isStrengthMetrics(workout.metrics) && (() => {
+          const detailedSets = workout.metrics.detailed_sets;
+          const hasDetailedSets = Boolean(detailedSets && detailedSets.length > 0);
+          const workingSets = hasDetailedSets ? detailedSets!.filter((s) => !s.is_warmup) : [];
+          const warmupSets = hasDetailedSets ? detailedSets!.filter((s) => s.is_warmup) : [];
+          const candidateSets = workingSets.length > 0 ? workingSets : (detailedSets || []);
 
-            {/* Tonnage & 1RM grid */}
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded-lg bg-zinc-950/40 border border-zinc-800/40 p-2.5">
-                <span className="text-zinc-500 block mb-0.5 text-[11px] font-medium">{t('workouts.tonnage')}</span>
-                <span className="font-bold text-red-400 flex items-center gap-1">
-                  <Flame className="w-3.5 h-3.5 shrink-0" />
-                  {formatWeight(
-                    calculateSetTonnage(
-                      workout.metrics.weight,
-                      workout.metrics.sets,
-                      workout.metrics.reps
-                    )
-                  )}
-                </span>
-              </div>
-              <div className="rounded-lg bg-zinc-950/40 border border-zinc-800/40 p-2.5">
-                <span className="text-zinc-500 block mb-0.5 text-[11px] font-medium">{t('workouts.est1RM')}</span>
-                <span className="font-bold text-amber-400 flex items-center gap-1">
-                  <Zap className="w-3.5 h-3.5 shrink-0" />
-                  {calculateOneRepMax(workout.metrics.weight, workout.metrics.reps)} {t('common.kg')}
-                </span>
-              </div>
-            </div>
+          const tonnage = hasDetailedSets
+            ? calculateDetailedSetsTonnage(detailedSets!)
+            : calculateSetTonnage(
+                workout.metrics.weight,
+                workout.metrics.sets,
+                workout.metrics.reps
+              );
 
-            {/* Specific attributes (RPE, Grip width, Stance, Style) */}
-            <div className="flex flex-wrap gap-1.5 pt-0.5">
-              {workout.metrics.rpe && (
-                <span className="inline-block px-2 py-0.5 rounded bg-zinc-800 text-[10px] font-semibold text-zinc-300">
-                  {t('workouts.rpe', { val: workout.metrics.rpe })}
-                </span>
-              )}
-              {'grip_width_cm' in workout.metrics && workout.metrics.grip_width_cm && (
-                <span className="inline-block px-2 py-0.5 rounded bg-zinc-800 text-[10px] text-zinc-400">
-                  {t('workouts.grip', { val: workout.metrics.grip_width_cm })}
-                </span>
-              )}
-              {'stance' in workout.metrics && workout.metrics.stance && (
-                <span className="inline-block px-2 py-0.5 rounded bg-zinc-800 text-[10px] text-zinc-400">
-                  {t('workouts.stance', { val: getStanceLabel(workout.metrics.stance) })}
-                </span>
-              )}
-              {'deadlift_style' in workout.metrics && workout.metrics.deadlift_style && (
-                <span className="inline-block px-2 py-0.5 rounded bg-zinc-800 text-[10px] text-zinc-400">
-                  {t('workouts.style', { val: getStyleLabel(workout.metrics.deadlift_style) })}
-                </span>
-              )}
-            </div>
-          </>
-        )}
+          const estimated1RM = hasDetailedSets
+            ? (candidateSets.length > 0
+                ? Math.max(...candidateSets.map((s) => calculateOneRepMax(s.weight, s.reps)))
+                : 0)
+            : calculateOneRepMax(workout.metrics.weight, workout.metrics.reps);
+
+          return (
+            <>
+              {/* Primary work sets summary (collapsed / compact view) */}
+              <div className="rounded-lg bg-zinc-950/70 border border-zinc-800/50 p-3 space-y-2 text-sm">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-zinc-400 font-medium">{t('workouts.workSets')}</span>
+                  <div className="text-right font-mono tracking-tight">
+                    <span className="font-bold text-white">
+                      {hasDetailedSets ? (
+                        workingSets.length > 0 ? (
+                          workingSets.length === 1 ? (
+                            `${workingSets[0].weight} ${t('common.kg')} × ${workingSets[0].reps}${workingSets[0].rpe ? ` @${workingSets[0].rpe}` : ''}`
+                          ) : (
+                            `${workingSets.length} ${t('workouts.workingCount')} (max ${Math.max(...workingSets.map((s) => s.weight))} ${t('common.kg')})`
+                          )
+                        ) : (
+                          `0 ${t('workouts.workingCount')}`
+                        )
+                      ) : (
+                        `${workout.metrics.sets} × ${workout.metrics.reps} @ ${workout.metrics.weight} ${t('common.kg')}`
+                      )}
+                    </span>
+                    {hasDetailedSets && warmupSets.length > 0 && (
+                      <span className="block text-[10px] text-amber-400/90 font-sans">
+                        + {warmupSets.length} {t('workouts.warmupCount')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Compact sets breakdown with RPE indicators */}
+                {hasDetailedSets && (
+                  <div className="flex flex-wrap gap-1.5 pt-1.5 border-t border-zinc-800/50 items-center">
+                    {detailedSets!.map((s, idx) => (
+                      <span
+                        key={idx}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono transition-colors ${
+                          s.is_warmup
+                            ? 'bg-amber-500/10 text-amber-300/90 border border-amber-500/20'
+                            : 'bg-zinc-800 text-white font-semibold border border-zinc-700'
+                        }`}
+                      >
+                        {s.is_warmup && (
+                          <span className="text-[10px] text-amber-400 font-bold">
+                            [{t('workouts.warmupShort')}]
+                          </span>
+                        )}
+                        <span>{s.weight}×{s.reps}</span>
+                        {s.rpe && (
+                          <span className="text-[9px] text-zinc-400 font-normal">@{s.rpe}</span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Toggle sets table details */}
+                {hasDetailedSets && (
+                  <button
+                    type="button"
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="w-full flex items-center justify-between text-[11px] font-medium text-zinc-400 hover:text-white px-2.5 py-1.5 rounded-md bg-zinc-900/60 hover:bg-zinc-800/60 border border-zinc-800/60 transition-colors mt-1"
+                  >
+                    <span>
+                      {isExpanded ? t('workouts.hideSetsDetails') : t('workouts.viewSetsDetails')}
+                    </span>
+                    {isExpanded ? (
+                      <ChevronUp className="w-3.5 h-3.5 text-zinc-400" />
+                    ) : (
+                      <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+                    )}
+                  </button>
+                )}
+
+                {/* Detailed sets breakdown table */}
+                {isExpanded && hasDetailedSets && (
+                  <div className="rounded-lg border border-zinc-800/80 bg-zinc-950/90 overflow-hidden text-xs mt-2">
+                    <div className="grid grid-cols-12 gap-1 px-3 py-2 bg-zinc-900/80 text-[10px] uppercase font-bold text-zinc-400 border-b border-zinc-800">
+                      <span className="col-span-1 text-center">#</span>
+                      <span className="col-span-3">{t('workouts.setCol')}</span>
+                      <span className="col-span-3 text-right">{t('workouts.weightCol')}</span>
+                      <span className="col-span-2 text-right">{t('workouts.repsCol')}</span>
+                      <span className="col-span-3 text-right">{t('workouts.set1RM')}</span>
+                    </div>
+                    <div className="divide-y divide-zinc-900">
+                      {detailedSets!.map((s, idx) => {
+                        const set1rm = calculateOneRepMax(s.weight, s.reps);
+                        const setVol = s.weight * s.reps;
+                        return (
+                          <div
+                            key={idx}
+                            className={`grid grid-cols-12 gap-1 px-3 py-2 items-center font-mono ${
+                              s.is_warmup ? 'bg-amber-500/[0.04] text-zinc-400' : 'text-zinc-200'
+                            }`}
+                          >
+                            <span className="col-span-1 text-center text-zinc-500 font-medium">#{s.set_number || idx + 1}</span>
+                            <div className="col-span-3 flex items-center gap-1 font-sans">
+                              {s.is_warmup ? (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                                  {t('workouts.warmupShort')}
+                                </span>
+                              ) : (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                  {t('workouts.workingSet')}
+                                </span>
+                              )}
+                              {s.rpe && (
+                                <span className="text-[10px] text-zinc-400 font-mono">@{s.rpe}</span>
+                              )}
+                            </div>
+                            <span className="col-span-3 text-right font-bold text-white">{s.weight} {t('common.kg')}</span>
+                            <span className="col-span-2 text-right font-semibold">{s.reps}</span>
+                            <div className="col-span-3 text-right">
+                              <span className="font-bold text-amber-400">{set1rm} {t('common.kg')}</span>
+                              <span className="block text-[9px] text-zinc-500">
+                                {s.is_warmup ? `(${setVol} ${t('common.kg')})` : `${setVol} ${t('common.kg')}`}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {warmupSets.length > 0 && (
+                      <div className="px-3 py-1.5 bg-zinc-900/50 text-[10px] text-zinc-500 flex items-center justify-between border-t border-zinc-800/60 font-sans">
+                        <span>{t('workouts.warmupExcludedNote')}</span>
+                        <span className="font-mono text-zinc-400">
+                          {detailedSets!.length} {t('common.sets')} ({workingSets.length} {t('workouts.workingCount')}, {warmupSets.length} {t('workouts.warmupCount')})
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Tonnage & 1RM grid */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-lg bg-zinc-950/40 border border-zinc-800/40 p-2.5">
+                  <span className="text-zinc-500 block mb-0.5 text-[11px] font-medium">{t('workouts.tonnage')}</span>
+                  <span className="font-bold text-red-400 flex items-center gap-1">
+                    <Flame className="w-3.5 h-3.5 shrink-0" />
+                    {formatWeight(tonnage)}
+                  </span>
+                </div>
+                <div className="rounded-lg bg-zinc-950/40 border border-zinc-800/40 p-2.5">
+                  <span className="text-zinc-500 block mb-0.5 text-[11px] font-medium">{t('workouts.est1RM')}</span>
+                  <span className="font-bold text-amber-400 flex items-center gap-1">
+                    <Zap className="w-3.5 h-3.5 shrink-0" />
+                    {estimated1RM} {t('common.kg')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Specific attributes (RPE, Grip width, Stance, Style) */}
+              <div className="flex flex-wrap gap-1.5 pt-0.5">
+                {workout.metrics.rpe && (
+                  <span className="inline-block px-2 py-0.5 rounded bg-zinc-800 text-[10px] font-semibold text-zinc-300">
+                    {t('workouts.rpe', { val: workout.metrics.rpe })}
+                  </span>
+                )}
+                {'grip_width_cm' in workout.metrics && workout.metrics.grip_width_cm && (
+                  <span className="inline-block px-2 py-0.5 rounded bg-zinc-800 text-[10px] text-zinc-400">
+                    {t('workouts.grip', { val: workout.metrics.grip_width_cm })}
+                  </span>
+                )}
+                {'stance' in workout.metrics && workout.metrics.stance && (
+                  <span className="inline-block px-2 py-0.5 rounded bg-zinc-800 text-[10px] text-zinc-400">
+                    {t('workouts.stance', { val: getStanceLabel(workout.metrics.stance) })}
+                  </span>
+                )}
+                {'deadlift_style' in workout.metrics && workout.metrics.deadlift_style && (
+                  <span className="inline-block px-2 py-0.5 rounded bg-zinc-800 text-[10px] text-zinc-400">
+                    {t('workouts.style', { val: getStyleLabel(workout.metrics.deadlift_style) })}
+                  </span>
+                )}
+              </div>
+            </>
+          );
+        })()}
 
         {isCardioMetrics(workout.metrics) && (
           <div className="space-y-2">

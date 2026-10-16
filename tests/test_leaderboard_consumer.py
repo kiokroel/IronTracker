@@ -165,6 +165,66 @@ def test_calculate_tonnage_running_alias_returns_zero() -> None:
     assert tonnage == 0.0
 
 
+def test_calculate_tonnage_detailed_sets_with_warmup() -> None:
+    """Verify tonnage calculates strictly on working sets, excluding warmup sets."""
+    from shared.contracts.src import StrengthSet
+
+    metrics = BenchPressMetrics(
+        exercise_type="bench_press",
+        weight=120.0,
+        sets=3,
+        reps=3,
+        detailed_sets=[
+            StrengthSet(set_number=1, weight=60.0, reps=10, is_warmup=True),
+            StrengthSet(set_number=2, weight=100.0, reps=5, is_warmup=False),
+            StrengthSet(set_number=3, weight=120.0, reps=3, is_warmup=False),
+        ],
+    )
+    # Only 100*5 + 120*3 = 500 + 360 = 860.0
+    tonnage = calculate_workout_tonnage(metrics)
+    assert tonnage == 860.0
+
+
+def test_calculate_tonnage_detailed_sets_all_warmup_returns_zero() -> None:
+    """Verify that when all detailed sets are warmup sets, tonnage is 0.0."""
+    from shared.contracts.src import StrengthSet
+
+    metrics = BenchPressMetrics(
+        exercise_type="bench_press",
+        weight=60.0,
+        sets=2,
+        reps=10,
+        detailed_sets=[
+            StrengthSet(set_number=1, weight=40.0, reps=10, is_warmup=True),
+            StrengthSet(set_number=2, weight=60.0, reps=10, is_warmup=True),
+        ],
+    )
+    tonnage = calculate_workout_tonnage(metrics)
+    assert tonnage == 0.0
+
+
+def test_calculate_tonnage_detailed_sets_empty_fallback() -> None:
+    """Verify empty or None detailed_sets falls back to weight * sets * reps."""
+    metrics = SquatMetrics(
+        exercise_type="squats",
+        weight=100.0,
+        sets=3,
+        reps=5,
+        detailed_sets=None,
+    )
+    tonnage = calculate_workout_tonnage(metrics)
+    assert tonnage == 1500.0
+
+    metrics_empty = SquatMetrics(
+        exercise_type="squats",
+        weight=100.0,
+        sets=3,
+        reps=5,
+        detailed_sets=[],
+    )
+    assert calculate_workout_tonnage(metrics_empty) == 1500.0
+
+
 def test_calculate_tonnage_unknown_exercise_type() -> None:
     """Verify unknown or unhandled object returns 0.0."""
     dummy_obj = MagicMock()

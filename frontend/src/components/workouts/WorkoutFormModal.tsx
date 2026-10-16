@@ -6,13 +6,14 @@ import {
   WorkoutUpdate,
   WorkoutMetrics,
   WorkoutSetRow,
+  StrengthSet,
   isStrengthMetrics,
   isCardioMetrics,
 } from '@/types/workout';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { calculateOneRepMax, formatWeight } from '@/utils/fitness';
+import { calculateOneRepMax, calculateDetailedSetsTonnage, formatWeight } from '@/utils/fitness';
 import { toLocalDatetimeInputValue, toUtcIsoString } from '@/utils/date';
 import { useWorkoutStore } from '@/store/useWorkoutStore';
 import { useLocaleStore } from '@/store/useLocaleStore';
@@ -80,18 +81,31 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
 
       if (isStrengthMetrics(workoutToEdit.metrics)) {
         const sm = workoutToEdit.metrics;
-        const totalSets = sm.sets || 1;
-        const generatedSets: WorkoutSetRow[] = [];
-        for (let i = 1; i <= totalSets; i++) {
-          generatedSets.push({
-            id: String(i),
-            setNumber: i,
-            weight: sm.weight,
-            reps: sm.reps,
-            rpe: sm.rpe,
-          });
+        if (sm.detailed_sets && sm.detailed_sets.length > 0) {
+          const loadedSets: WorkoutSetRow[] = sm.detailed_sets.map((ds, idx) => ({
+            id: String(idx + 1),
+            setNumber: ds.set_number || idx + 1,
+            weight: ds.weight,
+            reps: ds.reps,
+            rpe: ds.rpe,
+            is_warmup: Boolean(ds.is_warmup),
+          }));
+          setSets(loadedSets);
+        } else {
+          const totalSets = sm.sets || 1;
+          const generatedSets: WorkoutSetRow[] = [];
+          for (let i = 1; i <= totalSets; i++) {
+            generatedSets.push({
+              id: String(i),
+              setNumber: i,
+              weight: sm.weight,
+              reps: sm.reps,
+              rpe: sm.rpe,
+              is_warmup: false,
+            });
+          }
+          setSets(generatedSets);
         }
-        setSets(generatedSets);
 
         if ('grip_width_cm' in sm && sm.grip_width_cm) {
           setGripWidth(String(sm.grip_width_cm));
@@ -114,9 +128,9 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
       setDatetimeLocal(toLocalDatetimeInputValue());
       setMovement('bench_press');
       setSets([
-        { id: '1', setNumber: 1, weight: 100, reps: 5, rpe: 8 },
-        { id: '2', setNumber: 2, weight: 100, reps: 5, rpe: 8 },
-        { id: '3', setNumber: 3, weight: 100, reps: 5, rpe: 8.5 },
+        { id: '1', setNumber: 1, weight: 60, reps: 10, rpe: 6, is_warmup: true },
+        { id: '2', setNumber: 2, weight: 100, reps: 5, rpe: 8, is_warmup: false },
+        { id: '3', setNumber: 3, weight: 100, reps: 5, rpe: 8.5, is_warmup: false },
       ]);
       setGripWidth('');
       setStance('medium');
@@ -138,6 +152,7 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
       weight: lastSet ? lastSet.weight : 100,
       reps: lastSet ? lastSet.reps : 5,
       rpe: lastSet ? lastSet.rpe : undefined,
+      is_warmup: false,
     };
     setSets([...sets, newSet]);
   };
@@ -150,11 +165,18 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
       weight: target.weight,
       reps: target.reps,
       rpe: target.rpe,
+      is_warmup: Boolean(target.is_warmup),
     };
     const updated = [...sets.slice(0, index + 1), newSet, ...sets.slice(index + 1)].map(
       (s, idx) => ({ ...s, setNumber: idx + 1 })
     );
     setSets(updated);
+  };
+
+  const handleToggleWarmup = (id: string) => {
+    setSets(
+      sets.map((s) => (s.id === id ? { ...s, is_warmup: !s.is_warmup } : s))
+    );
   };
 
   const handleRemoveSet = (id: string) => {
@@ -190,17 +212,35 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
 
   // Real-time calculations
   const totalTonnage = useMemo(() => {
-    return sets.reduce((sum, s) => sum + s.weight * s.reps, 0);
+    return calculateDetailedSetsTonnage(sets);
   }, [sets]);
+
+  const workingSets = useMemo(() => {
+    return sets.filter((s) => !s.is_warmup);
+  }, [sets]);
+
+  const candidateSets = useMemo(() => {
+    return workingSets.length > 0 ? workingSets : sets;
+  }, [workingSets, sets]);
 
   const heaviestSet = useMemo<WorkoutSetRow>(() => {
-    if (sets.length === 0) return { id: '0', setNumber: 0, weight: 0, reps: 0 };
-    return sets.reduce((prev, curr) => (curr.weight > prev.weight ? curr : prev), sets[0]);
-  }, [sets]);
+    if (candidateSets.length === 0) return { id: '0', setNumber: 0, weight: 0, reps: 0 };
+    return candidateSets.reduce((prev, curr) => (curr.weight > prev.weight ? curr : prev), candidateSets[0]);
+  }, [candidateSets]);
+
+  const best1RMSet = useMemo<WorkoutSetRow | null>(() => {
+    if (candidateSets.length === 0) return null;
+    return candidateSets.reduce((best, curr) => {
+      const bestMax = calculateOneRepMax(best.weight, best.reps);
+      const currMax = calculateOneRepMax(curr.weight, curr.reps);
+      return currMax > bestMax ? curr : best;
+    }, candidateSets[0]);
+  }, [candidateSets]);
 
   const estimated1RM = useMemo(() => {
-    return calculateOneRepMax(heaviestSet.weight, heaviestSet.reps);
-  }, [heaviestSet]);
+    if (!best1RMSet) return 0;
+    return calculateOneRepMax(best1RMSet.weight, best1RMSet.reps);
+  }, [best1RMSet]);
 
   const totalReps = useMemo(() => {
     return sets.reduce((sum, s) => sum + s.reps, 0);
@@ -244,6 +284,14 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
           }
         }
 
+        const detailedSetsPayload: StrengthSet[] = sets.map((s, idx) => ({
+          set_number: idx + 1,
+          weight: s.weight,
+          reps: s.reps,
+          rpe: s.rpe,
+          is_warmup: Boolean(s.is_warmup),
+        }));
+
         const maxWeight = heaviestSet.weight;
         const totalSetsCount = sets.length;
         const primaryReps = heaviestSet.reps;
@@ -257,6 +305,7 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
             sets: totalSetsCount,
             reps: primaryReps,
             rpe: primaryRpe,
+            detailed_sets: detailedSetsPayload,
             grip_width_cm: gripWidth ? parseFloat(gripWidth) : undefined,
           };
         } else if (movement === 'squats') {
@@ -267,6 +316,7 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
             sets: totalSetsCount,
             reps: primaryReps,
             rpe: primaryRpe,
+            detailed_sets: detailedSetsPayload,
             stance: stance,
           };
         } else if (movement === 'deadlift') {
@@ -277,6 +327,7 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
             sets: totalSetsCount,
             reps: primaryReps,
             rpe: primaryRpe,
+            detailed_sets: detailedSetsPayload,
             deadlift_style: deadliftStyle,
           };
         } else {
@@ -289,6 +340,7 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
             sets: totalSetsCount,
             reps: primaryReps,
             rpe: primaryRpe,
+            detailed_sets: detailedSetsPayload,
           };
         }
       } else {
@@ -424,8 +476,16 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
                   {t('workouts.totalSets')}
                 </span>
                 <span className="text-base font-bold text-white font-mono mt-0.5 block">
-                  {sets.length}
+                  {workingSets.length}
+                  {sets.length !== workingSets.length && (
+                    <span className="text-xs text-zinc-400 font-normal"> / {sets.length}</span>
+                  )}
                 </span>
+                {sets.length !== workingSets.length && (
+                  <span className="text-[10px] text-amber-400 font-medium block">
+                    {sets.length - workingSets.length} {t('workouts.warmupCount')}
+                  </span>
+                )}
               </div>
               <div>
                 <span className="text-[11px] text-zinc-500 uppercase tracking-wider block">
@@ -458,10 +518,11 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
               <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 divide-y divide-zinc-800/60 overflow-hidden">
                 {/* Header row */}
                 <div className="grid grid-cols-12 gap-2 px-3 py-2 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider bg-zinc-900/60">
-                  <div className="col-span-2 text-center">{t('workouts.setCol')}</div>
+                  <div className="col-span-1 text-center">{t('workouts.setCol')}</div>
                   <div className="col-span-3">{t('workouts.weightCol')}</div>
-                  <div className="col-span-3">{t('workouts.repsCol')}</div>
+                  <div className="col-span-2">{t('workouts.repsCol')}</div>
                   <div className="col-span-2">{t('workouts.rpeCol')}</div>
+                  <div className="col-span-2 text-center">{t('workouts.warmupShort')}</div>
                   <div className="col-span-2 text-right">{t('workouts.actionsCol')}</div>
                 </div>
 
@@ -469,9 +530,11 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
                 {sets.map((set, idx) => (
                   <div
                     key={set.id}
-                    className="grid grid-cols-12 gap-2 items-center px-3 py-2 text-sm hover:bg-zinc-900/30 transition-colors"
+                    className={`grid grid-cols-12 gap-2 items-center px-3 py-2 text-sm transition-colors ${
+                      set.is_warmup ? 'bg-amber-500/5' : 'hover:bg-zinc-900/30'
+                    }`}
                   >
-                    <div className="col-span-2 text-center font-bold font-mono text-zinc-300 text-xs">
+                    <div className="col-span-1 text-center font-bold font-mono text-zinc-300 text-xs">
                       #{set.setNumber}
                     </div>
 
@@ -485,9 +548,14 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
                         className="w-full px-2.5 py-1.5 rounded-lg text-xs bg-zinc-900 border border-zinc-800 text-white font-mono focus:border-amber-500 focus:outline-none"
                         required
                       />
+                      {set.weight > 0 && set.reps > 0 && (
+                        <span className="text-[10px] text-amber-400/80 font-mono block mt-0.5 pl-0.5">
+                          1RM: {calculateOneRepMax(set.weight, set.reps)} {t('common.kg')}
+                        </span>
+                      )}
                     </div>
 
-                    <div className="col-span-3">
+                    <div className="col-span-2">
                       <input
                         type="number"
                         min="1"
@@ -497,6 +565,11 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
                         className="w-full px-2.5 py-1.5 rounded-lg text-xs bg-zinc-900 border border-zinc-800 text-white font-mono focus:border-amber-500 focus:outline-none"
                         required
                       />
+                      {set.weight > 0 && set.reps > 0 && (
+                        <span className="text-[10px] text-zinc-400 font-mono block mt-0.5 pl-0.5">
+                          {set.weight * set.reps} {t('common.kg')}
+                        </span>
+                      )}
                     </div>
 
                     <div className="col-span-2">
@@ -510,6 +583,21 @@ export const WorkoutFormModal: React.FC<WorkoutFormModalProps> = ({
                         onChange={(e) => handleUpdateSet(set.id, 'rpe', e.target.value)}
                         className="w-full px-2.5 py-1.5 rounded-lg text-xs bg-zinc-900 border border-zinc-800 text-white font-mono focus:border-amber-500 focus:outline-none placeholder-zinc-600"
                       />
+                    </div>
+
+                    <div className="col-span-2 flex items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleWarmup(set.id)}
+                        className={`px-2 py-1 rounded text-xs font-mono font-semibold transition-all border ${
+                          set.is_warmup
+                            ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30'
+                            : 'bg-zinc-900 text-zinc-500 border-zinc-800 hover:text-zinc-300 hover:border-zinc-700'
+                        }`}
+                        title={set.is_warmup ? t('workouts.warmup') : t('workouts.workingSetsOnly')}
+                      >
+                        [{t('workouts.warmupShort')}]
+                      </button>
                     </div>
 
                     <div className="col-span-2 flex items-center justify-end gap-1">
