@@ -23,6 +23,10 @@
         reverse_proxy {$WORKOUT_SERVICE_URL:workout-service:8000}
     }
 
+    handle /api/v1/workout-sessions* {
+        reverse_proxy {$WORKOUT_SERVICE_URL:workout-service:8000}
+    }
+
     # Reverse proxy to Leaderboard Service
     handle /api/v1/leaderboard* {
         reverse_proxy {$LEADERBOARD_SERVICE_URL:leaderboard-service:8002}
