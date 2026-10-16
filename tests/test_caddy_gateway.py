@@ -371,4 +371,3 @@ def test_docker_compose_microservices_network_isolation() -> None:
     assert "ports" in caddy_svc, "Caddy gateway must publish ingress port"
     caddy_ports = [str(p) for p in caddy_svc.get("ports", [])]
     assert any("80" in p for p in caddy_ports), "Caddy must expose port 80"
-

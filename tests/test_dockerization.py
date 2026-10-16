@@ -432,4 +432,3 @@ def test_docker_compose_override_example_file() -> None:
     assert "users-service" in services
     assert "leaderboard-service" in services
     assert "frontend" in services
-

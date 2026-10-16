@@ -14,8 +14,12 @@
         reverse_proxy {$USERS_SERVICE_URL:users-service:8001}
     }
 
-    # Reverse proxy to Workout Service
+    # Reverse proxy to Workout Service (workouts and exercises)
     handle /api/v1/workouts* {
+        reverse_proxy {$WORKOUT_SERVICE_URL:workout-service:8000}
+    }
+
+    handle /api/v1/exercises* {
         reverse_proxy {$WORKOUT_SERVICE_URL:workout-service:8000}
     }
 

@@ -5,7 +5,7 @@ from typing import Annotated
 from uuid import UUID
 
 import jwt
-from fastapi import Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 
 from workout_service.src.core.database import get_db, get_db_session
 
@@ -47,7 +47,21 @@ async def get_optional_user_id(
     return None
 
 
+async def get_current_user_id(
+    optional_user_id: Annotated[UUID | None, Depends(get_optional_user_id)],
+) -> UUID:
+    """Enforce authenticated user UUID requirement."""
+    if optional_user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return optional_user_id
+
+
 __all__ = [
+    "get_current_user_id",
     "get_db",
     "get_db_session",
     "get_optional_user_id",

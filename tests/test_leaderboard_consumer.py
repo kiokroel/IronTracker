@@ -648,7 +648,7 @@ async def test_consumer_start_and_stop_lifecycle() -> None:
     mock_kafka.start.assert_awaited_once()
 
     await consumer.stop()
-    assert consumer._running is False
+    assert not consumer._running
     mock_kafka.stop.assert_awaited_once()
 
 

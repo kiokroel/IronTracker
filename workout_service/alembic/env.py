@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from workout_service.src.core.config import get_settings
 from workout_service.src.core.database import Base
-from workout_service.src.models import OutboxModel, WorkoutModel  # noqa: F401
+from workout_service.src.models import ExerciseModel, OutboxModel, WorkoutModel  # noqa: F401
 
 config = context.config
 

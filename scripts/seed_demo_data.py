@@ -153,6 +153,7 @@ def hash_user_password(password: str) -> str:
 # Realistic Workout Generator
 # ==============================================================================
 
+
 def generate_workouts_for_user(
     user_id: UUID,
     is_demo: bool,
@@ -364,6 +365,7 @@ def generate_workouts_for_user(
 # Async Seeder Engine
 # ==============================================================================
 
+
 async def seed_data(
     pg_url: str | None = None,
     redis_url: str | None = None,
@@ -430,14 +432,16 @@ async def seed_data(
                 "target_tonnage",
                 41200.0 if spec.get("is_demo") else 20000.0,
             )
-            users_created.append({
-                "id": user_id,
-                "email": email,
-                "username": username,
-                "is_demo": spec.get("is_demo", False),
-                "target_tonnage": target_tonnage,
-                "style": spec.get("style", "all_round"),
-            })
+            users_created.append(
+                {
+                    "id": user_id,
+                    "email": email,
+                    "username": username,
+                    "is_demo": spec.get("is_demo", False),
+                    "target_tonnage": target_tonnage,
+                    "style": spec.get("style", "all_round"),
+                }
+            )
 
         await session.commit()
 
