@@ -5,6 +5,26 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class StrengthSet(BaseModel):
+    """Schema for individual strength set detailing weight, reps, RPE, and warmup status."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    set_number: int = Field(ge=1, description="Sequential number of the set (1, 2, 3...)")
+    weight: float = Field(gt=0, description="Working weight in kg (must be > 0)")
+    reps: int = Field(gt=0, description="Number of repetitions (must be > 0)")
+    rpe: float | None = Field(
+        default=None,
+        ge=1,
+        le=10,
+        description="Rate of Perceived Exertion (scale 1-10)",
+    )
+    is_warmup: bool = Field(default=False, description="Flag indicating if this is a warmup set")
+
+
+SetDetail = StrengthSet
+
+
 class StrengthExerciseMetrics(BaseModel):
     """Metrics schema for arbitrary strength exercises (e.g. overhead press, bicep curls)."""
 
@@ -20,6 +40,10 @@ class StrengthExerciseMetrics(BaseModel):
         ge=1,
         le=10,
         description="Rate of Perceived Exertion (scale 1-10)",
+    )
+    detailed_sets: list[StrengthSet] | None = Field(
+        default=None,
+        description="Detailed sets breakdown with individual weights, reps, and warmup flags",
     )
 
 
@@ -64,6 +88,10 @@ class BenchPressMetrics(BaseModel):
         gt=0,
         description="Grip width in centimeters",
     )
+    detailed_sets: list[StrengthSet] | None = Field(
+        default=None,
+        description="Detailed sets breakdown with individual weights, reps, and warmup flags",
+    )
 
 
 class SquatMetrics(BaseModel):
@@ -84,6 +112,10 @@ class SquatMetrics(BaseModel):
     stance: Literal["narrow", "medium", "wide"] | None = Field(
         default=None,
         description="Squat stance width ('narrow', 'medium', 'wide')",
+    )
+    detailed_sets: list[StrengthSet] | None = Field(
+        default=None,
+        description="Detailed sets breakdown with individual weights, reps, and warmup flags",
     )
 
 
@@ -108,6 +140,10 @@ class DeadliftMetrics(BaseModel):
     deadlift_style: Literal["conventional", "sumo"] | None = Field(
         default=None,
         description="Deadlift style ('conventional', 'sumo')",
+    )
+    detailed_sets: list[StrengthSet] | None = Field(
+        default=None,
+        description="Detailed sets breakdown with individual weights, reps, and warmup flags",
     )
 
 
@@ -165,9 +201,11 @@ __all__ = [
     "CardioExerciseMetrics",
     "DeadliftMetrics",
     "RunningMetrics",
+    "SetDetail",
     "SquatMetrics",
     "SquatsMetrics",
     "StrengthExerciseMetrics",
+    "StrengthSet",
     "TreadmillMetrics",
     "WorkoutMetrics",
 ]

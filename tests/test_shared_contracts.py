@@ -732,9 +732,11 @@ def test_shared_contracts_all_exports() -> None:
         "RunningMetrics",
         "SendAchievementNotificationCommand",
         "SendNotificationCommand",
+        "SetDetail",
         "SquatMetrics",
         "SquatsMetrics",
         "StrengthExerciseMetrics",
+        "StrengthSet",
         "TreadmillMetrics",
         "WorkoutCompletedEvent",
         "WorkoutCreatedEvent",
@@ -743,3 +745,85 @@ def test_shared_contracts_all_exports() -> None:
     assert set(contracts_module.__all__) == expected_exports
     for export_name in expected_exports:
         assert hasattr(contracts_module, export_name)
+
+
+def test_strength_set_valid_and_serialization() -> None:
+    """Verify StrengthSet creation, defaults, and roundtrip JSON serialization."""
+    from shared.contracts.src import SetDetail, StrengthSet
+
+    assert SetDetail is StrengthSet
+
+    s = StrengthSet(set_number=1, weight=100.0, reps=5, rpe=8.5, is_warmup=False)
+    assert s.set_number == 1
+    assert s.weight == 100.0
+    assert s.reps == 5
+    assert s.rpe == 8.5
+    assert not s.is_warmup
+
+    data_json = s.model_dump_json()
+    restored = StrengthSet.model_validate_json(data_json)
+    assert restored == s
+
+
+def test_strength_set_extra_fields_forbidden() -> None:
+    """Verify that unexpected fields on StrengthSet are rejected."""
+    from shared.contracts.src import StrengthSet
+
+    with pytest.raises(ValidationError):
+        StrengthSet(set_number=1, weight=100.0, reps=5, invalid_field=123)  # type: ignore[call-arg]
+
+
+def test_strength_set_validation_boundaries() -> None:
+    """Verify validation boundary conditions on StrengthSet."""
+    from shared.contracts.src import StrengthSet
+
+    with pytest.raises(ValidationError):
+        StrengthSet(set_number=0, weight=100.0, reps=5)  # set_number < 1
+    with pytest.raises(ValidationError):
+        StrengthSet(set_number=1, weight=0.0, reps=5)  # weight <= 0
+    with pytest.raises(ValidationError):
+        StrengthSet(set_number=1, weight=100.0, reps=0)  # reps <= 0
+    with pytest.raises(ValidationError):
+        StrengthSet(set_number=1, weight=100.0, reps=5, rpe=0.5)  # rpe < 1
+    with pytest.raises(ValidationError):
+        StrengthSet(set_number=1, weight=100.0, reps=5, rpe=10.5)  # rpe > 10
+
+
+def test_strength_metrics_with_detailed_sets() -> None:
+    """Verify detailed_sets field across BenchPress, Squat, Deadlift, and Strength metrics."""
+    from shared.contracts.src import (
+        BenchPressMetrics,
+        DeadliftMetrics,
+        SquatMetrics,
+        StrengthExerciseMetrics,
+        StrengthSet,
+    )
+
+    sets = [
+        StrengthSet(set_number=1, weight=60.0, reps=10, is_warmup=True),
+        StrengthSet(set_number=2, weight=100.0, reps=5, rpe=8.0, is_warmup=False),
+        StrengthSet(set_number=3, weight=120.0, reps=3, rpe=9.0, is_warmup=False),
+    ]
+
+    bench = BenchPressMetrics(weight=120.0, sets=3, reps=3, detailed_sets=sets)
+    assert bench.detailed_sets is not None
+    assert len(bench.detailed_sets) == 3
+    assert bench.detailed_sets[0].is_warmup is True
+    assert bench.detailed_sets[1].is_warmup is False
+
+    dumped = bench.model_dump_json()
+    restored = BenchPressMetrics.model_validate_json(dumped)
+    assert restored == bench
+
+    squat = SquatMetrics(weight=150.0, sets=3, reps=3, stance="wide", detailed_sets=sets)
+    assert SquatMetrics.model_validate_json(squat.model_dump_json()) == squat
+
+    deadlift = DeadliftMetrics(
+        weight=200.0, sets=3, reps=3, deadlift_style="conventional", detailed_sets=sets
+    )
+    assert DeadliftMetrics.model_validate_json(deadlift.model_dump_json()) == deadlift
+
+    strength = StrengthExerciseMetrics(
+        exercise_name="overhead_press", weight=70.0, sets=3, reps=3, detailed_sets=sets
+    )
+    assert StrengthExerciseMetrics.model_validate_json(strength.model_dump_json()) == strength

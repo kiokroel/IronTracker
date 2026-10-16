@@ -326,73 +326,178 @@ def calculate_1rm_breakdown(
     )
 
 
+def _calculate_detailed_tonnage(detailed_sets: list[Any]) -> float:
+    """Calculate tonnage from detailed sets list, strictly ignoring warmup sets."""
+    total = 0.0
+    for s in detailed_sets:
+        is_warmup = (
+            s.get("is_warmup", False) if isinstance(s, dict) else getattr(s, "is_warmup", False)
+        )
+        if not is_warmup:
+            w = float(s["weight"] if isinstance(s, dict) else getattr(s, "weight", 0.0))
+            r = int(s["reps"] if isinstance(s, dict) else getattr(s, "reps", 0))
+            total += w * r
+    return float(total)
+
+
 def calculate_workout_tonnage(metrics: WorkoutMetrics | Any) -> float:
     """Calculate total lifted tonnage in kg.
 
-    For strength exercises: weight * sets * reps.
-    For cardio exercises: 0.0.
+    For strength exercises:
+        If metrics has non-empty detailed_sets:
+            tonnage = sum(float(s.weight) * int(s.reps) for s in detailed_sets if not s.is_warmup)
+        Otherwise:
+            tonnage = float(weight * sets * reps)
+
+    For cardio exercises:
+        tonnage = 0.0
     """
     if isinstance(
         metrics,
         (BenchPressMetrics, SquatMetrics, DeadliftMetrics, StrengthExerciseMetrics),
     ):
+        if metrics.detailed_sets:
+            return float(
+                sum(
+                    float(s.weight) * int(s.reps)
+                    for s in metrics.detailed_sets
+                    if not getattr(s, "is_warmup", False)
+                )
+            )
         return float(metrics.weight * metrics.sets * metrics.reps)
 
     if isinstance(metrics, (CardioExerciseMetrics, TreadmillMetrics)):
         return 0.0
 
-    exercise_type = getattr(metrics, "exercise_type", "")
+    exercise_type = ""
+    if isinstance(metrics, dict):
+        exercise_type = metrics.get("exercise_type", "")
+    else:
+        exercise_type = getattr(metrics, "exercise_type", "")
+
     if exercise_type in ("bench_press", "benchpress", "squats", "squat", "deadlift", "strength"):
-        weight = float(getattr(metrics, "weight", 0.0))
-        sets = int(getattr(metrics, "sets", 0))
-        reps = int(getattr(metrics, "reps", 0))
+        detailed = (
+            metrics.get("detailed_sets")
+            if isinstance(metrics, dict)
+            else getattr(metrics, "detailed_sets", None)
+        )
+        if detailed:
+            return _calculate_detailed_tonnage(detailed)
+        weight = float(
+            metrics.get("weight", 0.0)
+            if isinstance(metrics, dict)
+            else getattr(metrics, "weight", 0.0)
+        )
+        sets = int(
+            metrics.get("sets", 0) if isinstance(metrics, dict) else getattr(metrics, "sets", 0)
+        )
+        reps = int(
+            metrics.get("reps", 0) if isinstance(metrics, dict) else getattr(metrics, "reps", 0)
+        )
         return float(weight * sets * reps)
 
     if exercise_type in ("cardio", "treadmill", "running"):
         return 0.0
 
+    # Duck-typing fallback for any custom strength exercise model or dict
+    detailed = (
+        metrics.get("detailed_sets")
+        if isinstance(metrics, dict)
+        else getattr(metrics, "detailed_sets", None)
+    )
+    if detailed:
+        return _calculate_detailed_tonnage(detailed)
+
     if hasattr(metrics, "weight") and hasattr(metrics, "sets") and hasattr(metrics, "reps"):
         return float(metrics.weight * metrics.sets * metrics.reps)
 
+    if (
+        isinstance(metrics, dict)
+        and "weight" in metrics
+        and "sets" in metrics
+        and "reps" in metrics
+    ):
+        return float(metrics["weight"] * metrics["sets"] * metrics["reps"])
+
     return 0.0
+
+
+def _extract_sets_from_item(item: Any) -> list[tuple[float, int, bool]] | None:
+    """Extract list of (weight, reps, is_warmup) from an item if possible."""
+    detailed = (
+        item.get("detailed_sets")
+        if isinstance(item, dict)
+        else getattr(item, "detailed_sets", None)
+    )
+    if detailed:
+        result: list[tuple[float, int, bool]] = []
+        for s in detailed:
+            w = float(s["weight"] if isinstance(s, dict) else getattr(s, "weight", 0.0))
+            r = int(s["reps"] if isinstance(s, dict) else getattr(s, "reps", 0))
+            warmup = bool(
+                s.get("is_warmup", False) if isinstance(s, dict) else getattr(s, "is_warmup", False)
+            )
+            if w > 0 and r > 0:
+                result.append((w, r, warmup))
+        if result:
+            return result
+
+    if isinstance(item, tuple) and len(item) == 2:
+        return [(float(item[0]), int(item[1]), False)]
+
+    if isinstance(item, dict) and "weight" in item and "reps" in item:
+        w = float(item["weight"])
+        r = int(item["reps"])
+        warmup = bool(item.get("is_warmup", False))
+        if w > 0 and r > 0:
+            return [(w, r, warmup)]
+
+    if hasattr(item, "weight") and hasattr(item, "reps"):
+        w = float(getattr(item, "weight", 0.0))
+        r = int(getattr(item, "reps", 0))
+        warmup = bool(getattr(item, "is_warmup", False))
+        if w > 0 and r > 0:
+            return [(w, r, warmup)]
+
+    return None
 
 
 def calculate_max_1rm(
     items: Sequence[Any] | Any,
     method: str = "composite",
 ) -> float:
-    """Calculate maximum 1RM among multiple sets or exercises."""
+    """Calculate maximum 1RM among multiple sets or exercises.
+
+    Supports detailed_sets breakdown and warmup flags.
+    """
     calc_fn = calculate_epley_1rm if method == "epley" else calculate_composite_1rm
     item_list: Sequence[Any] = [items] if not isinstance(items, (list, tuple)) else items
 
-    max_val = 0.0
+    extracted_sets: list[tuple[float, int, bool]] = []
     for item in item_list:
         try:
-            if isinstance(item, tuple):
-                if len(item) == 2:
-                    val = calc_fn(float(item[0]), int(item[1]))
-                else:
-                    val = 0.0
-            elif isinstance(item, dict) and "weight" in item and "reps" in item:
-                val = calc_fn(float(item["weight"]), int(item["reps"]))
-            elif isinstance(
-                item,
-                (BenchPressMetrics, SquatMetrics, DeadliftMetrics, StrengthExerciseMetrics),
-            ):
-                val = calc_fn(float(item.weight), int(item.reps))
-            elif is_strength_exercise(item):
-                weight_val = getattr(item, "weight", None)
-                reps_val = getattr(item, "reps", None)
-                if isinstance(weight_val, (int, float)) and isinstance(reps_val, int):
-                    val = calc_fn(float(weight_val), reps_val)
-                else:
-                    val = 0.0
-            else:
-                val = 0.0
+            if is_cardio_exercise(item):
+                continue
+            sets = _extract_sets_from_item(item)
+            if sets:
+                extracted_sets.extend(sets)
+        except Exception as exc:
+            logger.debug("Skipping item in max 1RM calculation: %s", exc)
+
+    if not extracted_sets:
+        return 0.0
+
+    working_sets = [s for s in extracted_sets if not s[2]]
+    candidate_sets = working_sets if len(working_sets) > 0 else extracted_sets
+
+    max_val = 0.0
+    for w, r, _ in candidate_sets:
+        try:
+            val = calc_fn(w, r)
             if val > max_val:
                 max_val = val
         except Exception as exc:
-            logger.debug("Skipping item in max 1RM calculation: %s", exc)
+            logger.debug("Error calculating 1RM for set (%s, %s): %s", w, r, exc)
 
     return max_val
 

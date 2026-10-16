@@ -158,6 +158,23 @@ export function calculateSetTonnage(weight: number, sets: number, reps: number):
 }
 
 /**
+ * Calculate total tonnage from detailed sets, strictly ignoring warmup sets.
+ */
+export function calculateDetailedSetsTonnage(
+  sets: Array<{ weight: number; reps: number; is_warmup?: boolean }>
+): number {
+  if (!sets || sets.length === 0) return 0;
+  const workingSets = sets.filter((s) => !s.is_warmup);
+  const total = workingSets.reduce((sum, s) => {
+    if (s.weight > 0 && s.reps > 0) {
+      return sum + s.weight * s.reps;
+    }
+    return sum;
+  }, 0);
+  return Math.round(total * 10) / 10;
+}
+
+/**
  * Format kilograms into readable metric display (e.g. 1,250 kg or 12.5 t).
  */
 export function formatWeight(kg: number): string {

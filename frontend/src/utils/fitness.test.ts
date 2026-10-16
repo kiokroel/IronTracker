@@ -8,6 +8,7 @@ import {
   calculateAllOneRepMaxes,
   calculateIntensityZones,
   calculateSetTonnage,
+  calculateDetailedSetsTonnage,
   formatWeight,
   calculate1RMByFormula,
 } from './fitness';
@@ -138,6 +139,40 @@ describe('One-Rep Maximum (1RM) Formulas & Utilities', () => {
       expect(calculate1RMByFormula('epley', 100, 10)).toBe(133.3);
       expect(calculate1RMByFormula('brzycki', 100, 5)).toBe(112.5);
       expect(calculate1RMByFormula('average', 100, 5)).toBeGreaterThan(110);
+    });
+  });
+
+  describe('calculateDetailedSetsTonnage', () => {
+    it('calculates tonnage strictly for working sets, excluding warmup sets', () => {
+      const sets = [
+        { weight: 60, reps: 10, is_warmup: true },
+        { weight: 100, reps: 5, is_warmup: false },
+        { weight: 120, reps: 3, is_warmup: false },
+      ];
+      // 100*5 + 120*3 = 500 + 360 = 860
+      expect(calculateDetailedSetsTonnage(sets)).toBe(860);
+    });
+
+    it('returns 0 when all sets are warmups', () => {
+      const sets = [
+        { weight: 40, reps: 10, is_warmup: true },
+        { weight: 60, reps: 8, is_warmup: true },
+      ];
+      expect(calculateDetailedSetsTonnage(sets)).toBe(0);
+    });
+
+    it('handles sets without explicit is_warmup as working sets', () => {
+      const sets = [
+        { weight: 100, reps: 5 },
+        { weight: 100, reps: 5 },
+      ];
+      expect(calculateDetailedSetsTonnage(sets)).toBe(1000);
+    });
+
+    it('returns 0 for empty array or invalid numbers', () => {
+      expect(calculateDetailedSetsTonnage([])).toBe(0);
+      expect(calculateDetailedSetsTonnage([{ weight: -50, reps: 5, is_warmup: false }])).toBe(0);
+      expect(calculateDetailedSetsTonnage([{ weight: 100, reps: 0, is_warmup: false }])).toBe(0);
     });
   });
 });
