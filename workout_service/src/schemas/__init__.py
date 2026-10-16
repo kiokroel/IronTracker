@@ -26,6 +26,15 @@ from workout_service.src.schemas.workout import (
     WorkoutResponse,
     WorkoutUpdate,
 )
+from workout_service.src.schemas.workout_session import (
+    WorkoutSessionBase,
+    WorkoutSessionCreate,
+    WorkoutSessionExerciseItem,
+    WorkoutSessionResponse,
+    WorkoutSessionSet,
+    WorkoutSessionUpdate,
+    calculate_session_tonnage,
+)
 
 __all__ = [
     "BenchPressMetrics",
@@ -49,5 +58,12 @@ __all__ = [
     "WorkoutCreate",
     "WorkoutMetrics",
     "WorkoutResponse",
+    "WorkoutSessionBase",
+    "WorkoutSessionCreate",
+    "WorkoutSessionExerciseItem",
+    "WorkoutSessionResponse",
+    "WorkoutSessionSet",
+    "WorkoutSessionUpdate",
     "WorkoutUpdate",
+    "calculate_session_tonnage",
 ]

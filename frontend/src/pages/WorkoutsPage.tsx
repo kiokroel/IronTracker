@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   Plus,
   Dumbbell,
@@ -10,13 +10,17 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Layers,
 } from 'lucide-react';
 import { Workout, isStrengthMetrics, isCardioMetrics } from '@/types/workout';
+import { WorkoutSession } from '@/types/workoutSession';
+import { workoutSessionsApi } from '@/api/workoutSessions';
 import { useWorkoutStore } from '@/store/useWorkoutStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useLocaleStore } from '@/store/useLocaleStore';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Modal } from '@/components/ui/Modal';
 import { Loader } from '@/components/ui/Loader';
 import {
   WorkoutCard,
@@ -24,6 +28,8 @@ import {
   WorkoutFilters,
   DeleteWorkoutModal,
   CustomExerciseModal,
+  WorkoutSessionModal,
+  WorkoutSessionCard,
 } from '@/components/workouts';
 import {
   calculateOneRepMax,
@@ -33,6 +39,10 @@ import {
 } from '@/utils/fitness';
 import { getWorkoutDateKey, formatDateGroupHeading } from '@/utils/date';
 import { formatExerciseName } from '@/utils/exercise';
+
+export type FeedItem =
+  | { kind: 'single'; id: string; date: string; data: Workout }
+  | { kind: 'session'; id: string; date: string; data: WorkoutSession };
 
 export const WorkoutsPage: React.FC = () => {
   const {
@@ -55,16 +65,41 @@ export const WorkoutsPage: React.FC = () => {
   const currentUser = useAuthStore((state) => state.user);
   const { t, locale } = useLocaleStore();
 
+  // Sessions state
+  const [sessions, setSessions] = useState<WorkoutSession[]>([]);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
+  const [sessionToEdit, setSessionToEdit] = useState<WorkoutSession | null>(null);
+  const [sessionToDelete, setSessionToDelete] = useState<WorkoutSession | null>(null);
+  const [isDeletingSession, setIsDeletingSession] = useState(false);
+
   // Modal states
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isSessionModalOpen, setIsSessionModalOpen] = useState(false);
   const [isCustomExerciseModalOpen, setIsCustomExerciseModalOpen] = useState(false);
   const [workoutToEdit, setWorkoutToEdit] = useState<Workout | null>(null);
   const [workoutToDelete, setWorkoutToDelete] = useState<Workout | null>(null);
 
+  // Fetch workout sessions
+  const fetchSessions = useCallback(async () => {
+    try {
+      setIsLoadingSessions(true);
+      const data = await workoutSessionsApi.getWorkoutSessions({
+        user_id: currentUser?.id,
+        limit: 100,
+      });
+      setSessions(data);
+    } catch {
+      // Graceful fallback
+    } finally {
+      setIsLoadingSessions(false);
+    }
+  }, [currentUser?.id]);
+
   // Initial fetch
   useEffect(() => {
     fetchWorkouts();
-  }, [fetchWorkouts]);
+    fetchSessions();
+  }, [fetchWorkouts, fetchSessions]);
 
   // Auto-clear success message after 4 seconds
   useEffect(() => {
@@ -76,10 +111,10 @@ export const WorkoutsPage: React.FC = () => {
     }
   }, [successMessage, clearSuccess]);
 
-  // Filtered workouts list (client-side filtering + search)
-  const filteredWorkouts = useMemo(() => {
+  // Filtered Single Workouts
+  const filteredSingleWorkouts = useMemo(() => {
     return workouts.filter((workout) => {
-      // 1. Ensure only current user's workouts are displayed
+      // 1. User isolation
       if (currentUser && workout.user_id !== currentUser.id) {
         return false;
       }
@@ -148,7 +183,83 @@ export const WorkoutsPage: React.FC = () => {
     });
   }, [workouts, filters, currentUser]);
 
-  // Overall athlete statistics from loaded workouts
+  // Filtered Complex Sessions
+  const filteredSessions = useMemo(() => {
+    return sessions.filter((session) => {
+      // 1. User isolation
+      if (currentUser && session.user_id !== currentUser.id) {
+        return false;
+      }
+
+      // 2. Exercise type filter
+      if (filters.exerciseType !== 'all') {
+        const hasMatchingExercise = session.exercises.some((ex) => {
+          const raw = (ex.exercise_name || '').toLowerCase();
+          const exType = (ex.exercise_type || '').toLowerCase();
+          if (filters.exerciseType === 'bench_press') return raw.includes('bench') || raw.includes('жим');
+          if (filters.exerciseType === 'squats') return raw.includes('squat') || raw.includes('присед');
+          if (filters.exerciseType === 'deadlift') return raw.includes('deadlift') || raw.includes('тяга');
+          if (filters.exerciseType === 'overhead_press') return raw.includes('overhead') || raw.includes('армейский');
+          if (filters.exerciseType === 'cardio') return exType === 'cardio' || raw.includes('cardio') || raw.includes('бег');
+          return true;
+        });
+        if (!hasMatchingExercise) return false;
+      }
+
+      // 3. Search query
+      if (filters.searchQuery.trim()) {
+        const q = filters.searchQuery.toLowerCase();
+        const titleMatch = (session.title || '').toLowerCase().includes(q);
+        const notesMatch = (session.notes || '').toLowerCase().includes(q);
+        const exMatch = session.exercises.some((ex) =>
+          (ex.exercise_name || '').toLowerCase().includes(q)
+        );
+        if (!titleMatch && !notesMatch && !exMatch) {
+          return false;
+        }
+      }
+
+      // 4. Date range
+      const sessionDate = new Date(session.date || session.created_at);
+      if (filters.startDate) {
+        const start = new Date(filters.startDate);
+        start.setHours(0, 0, 0, 0);
+        if (sessionDate < start) return false;
+      }
+      if (filters.endDate) {
+        const end = new Date(filters.endDate);
+        end.setHours(23, 59, 59, 999);
+        if (sessionDate > end) return false;
+      }
+
+      return true;
+    });
+  }, [sessions, filters, currentUser]);
+
+  // Unified Feed Items (Singles + Sessions)
+  const unifiedFeedItems = useMemo<FeedItem[]>(() => {
+    const singleItems: FeedItem[] = filteredSingleWorkouts.map((w) => ({
+      kind: 'single',
+      id: w.id,
+      date: w.date || w.created_at,
+      data: w,
+    }));
+
+    const sessionItems: FeedItem[] = filteredSessions.map((s) => ({
+      kind: 'session',
+      id: s.id,
+      date: s.date || s.created_at,
+      data: s,
+    }));
+
+    return [...singleItems, ...sessionItems].sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return dateB - dateA;
+    });
+  }, [filteredSingleWorkouts, filteredSessions]);
+
+  // Overall athlete statistics from loaded workouts & sessions
   const stats = useMemo(() => {
     let totalTonnage = 0;
     let heaviest1RM = 0;
@@ -156,7 +267,9 @@ export const WorkoutsPage: React.FC = () => {
     let totalCardioKm = 0;
 
     const userWorkouts = currentUser ? workouts.filter((w) => w.user_id === currentUser.id) : workouts;
+    const userSessions = currentUser ? sessions.filter((s) => s.user_id === currentUser.id) : sessions;
 
+    // Single workouts
     for (const w of userWorkouts) {
       if (isStrengthMetrics(w.metrics)) {
         const itemTonnage = w.metrics.detailed_sets && w.metrics.detailed_sets.length > 0
@@ -180,39 +293,56 @@ export const WorkoutsPage: React.FC = () => {
       }
     }
 
+    // Sessions
+    for (const s of userSessions) {
+      totalTonnage += s.total_tonnage;
+
+      for (const ex of s.exercises) {
+        if (ex.exercise_type === 'strength' || ex.exercise_type === 'bodyweight') {
+          for (const st of ex.sets) {
+            if (!st.is_warmup && st.weight > 0 && st.reps > 0) {
+              const e1rm = calculateOneRepMax(st.weight, st.reps);
+              if (e1rm > heaviest1RM) {
+                heaviest1RM = e1rm;
+                heaviestExercise = formatExerciseName(ex.exercise_name, t);
+              }
+            }
+          }
+        } else if (ex.exercise_type === 'cardio' && ex.distance_km) {
+          totalCardioKm += ex.distance_km;
+        }
+      }
+    }
+
     return {
-      totalWorkouts: userWorkouts.length,
+      totalWorkouts: userWorkouts.length + userSessions.length,
       totalTonnage,
       heaviest1RM,
       heaviestExercise,
       totalCardioKm: Math.round(totalCardioKm * 10) / 10,
     };
-  }, [workouts, currentUser, t]);
+  }, [workouts, sessions, currentUser, t]);
 
-  // Group workouts by Date (sorted chronological descending)
-  const groupedWorkouts = useMemo(() => {
-    const sorted = [...filteredWorkouts].sort((a, b) => {
-      const dateA = new Date(a.date || a.created_at).getTime();
-      const dateB = new Date(b.date || b.created_at).getTime();
-      return dateB - dateA;
-    });
-
-    const groups: { [dateKey: string]: Workout[] } = {};
-    for (const w of sorted) {
-      const key = getWorkoutDateKey(w.date || w.created_at);
+  // Group items by Date (sorted chronological descending)
+  const groupedFeed = useMemo(() => {
+    const groups: { [dateKey: string]: FeedItem[] } = {};
+    for (const item of unifiedFeedItems) {
+      const key = getWorkoutDateKey(item.date);
       if (!groups[key]) {
         groups[key] = [];
       }
-      groups[key].push(w);
+      groups[key].push(item);
     }
 
     return Object.entries(groups).map(([dateKey, items]) => {
       // Calculate day tonnage
       const dayTonnage = items.reduce((sum, item) => {
-        if (isStrengthMetrics(item.metrics)) {
-          const itemTonnage = item.metrics.detailed_sets && item.metrics.detailed_sets.length > 0
-            ? calculateDetailedSetsTonnage(item.metrics.detailed_sets)
-            : calculateSetTonnage(item.metrics.weight, item.metrics.sets, item.metrics.reps);
+        if (item.kind === 'session') {
+          return sum + item.data.total_tonnage;
+        } else if (isStrengthMetrics(item.data.metrics)) {
+          const itemTonnage = item.data.metrics.detailed_sets && item.data.metrics.detailed_sets.length > 0
+            ? calculateDetailedSetsTonnage(item.data.metrics.detailed_sets)
+            : calculateSetTonnage(item.data.metrics.weight, item.data.metrics.sets, item.data.metrics.reps);
           return sum + itemTonnage;
         }
         return sum;
@@ -230,9 +360,9 @@ export const WorkoutsPage: React.FC = () => {
         dayTonnage,
       };
     });
-  }, [filteredWorkouts, locale, t]);
+  }, [unifiedFeedItems, locale, t]);
 
-  // Handlers
+  // Handlers for single workouts
   const handleOpenCreateModal = () => {
     setWorkoutToEdit(null);
     setIsFormModalOpen(true);
@@ -256,6 +386,39 @@ export const WorkoutsPage: React.FC = () => {
       // Handled by store
     }
   };
+
+  // Handlers for complex sessions
+  const handleOpenCreateSessionModal = () => {
+    setSessionToEdit(null);
+    setIsSessionModalOpen(true);
+  };
+
+  const handleOpenEditSessionModal = (session: WorkoutSession) => {
+    setSessionToEdit(session);
+    setIsSessionModalOpen(true);
+  };
+
+  const handleOpenDeleteSessionModal = (session: WorkoutSession) => {
+    setSessionToDelete(session);
+  };
+
+  const handleConfirmDeleteSession = async () => {
+    if (!sessionToDelete) return;
+    try {
+      setIsDeletingSession(true);
+      await workoutSessionsApi.deleteWorkoutSession(sessionToDelete.id);
+      setIsDeletingSession(false);
+      setSessionToDelete(null);
+      await fetchSessions();
+      useWorkoutStore.setState({
+        successMessage: t('workouts.sessionDeletedSuccess'),
+      });
+    } catch {
+      setIsDeletingSession(false);
+    }
+  };
+
+  const totalLoadedItemsCount = filteredSingleWorkouts.length + filteredSessions.length;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -309,6 +472,15 @@ export const WorkoutsPage: React.FC = () => {
           >
             <Plus className="w-4 h-4 text-amber-400" />
             <span>{t('exercises.addCustomShort')}</span>
+          </Button>
+          <Button
+            onClick={handleOpenCreateSessionModal}
+            variant="secondary"
+            size="md"
+            className="gap-2 shrink-0 border-amber-500/40 text-amber-400 hover:bg-amber-500/10 font-bold"
+          >
+            <Layers className="w-4 h-4 text-amber-400" />
+            <span>{t('workouts.complexSession')}</span>
           </Button>
           <Button onClick={handleOpenCreateModal} variant="primary" size="md" className="gap-2 shrink-0">
             <Plus className="w-4 h-4" />
@@ -378,27 +550,29 @@ export const WorkoutsPage: React.FC = () => {
         filters={filters}
         onFilterChange={setFilter}
         onReset={resetFilters}
-        totalCount={filteredWorkouts.length}
+        totalCount={totalLoadedItemsCount}
       />
 
       {/* Main Content Area */}
-      {isLoading ? (
+      {isLoading && isLoadingSessions ? (
         <Loader text={t('common.loading')} />
-      ) : filteredWorkouts.length === 0 ? (
+      ) : unifiedFeedItems.length === 0 ? (
         <Card className="border-dashed border-zinc-800 bg-zinc-900/40 p-12 text-center">
           <Dumbbell className="mx-auto h-12 w-12 text-zinc-600 mb-3" />
           <h3 className="text-base font-bold text-white">{t('workouts.noWorkouts')}</h3>
           <p className="text-xs text-zinc-400 max-w-sm mx-auto mt-1 mb-4 leading-relaxed">
-            {workouts.length === 0
-              ? t('workouts.noWorkoutsDesc')
-              : t('workouts.noWorkoutsDesc')}
+            {t('workouts.noWorkoutsDesc')}
           </p>
           <div className="flex items-center justify-center gap-3">
-            {workouts.length > 0 && (
+            {(workouts.length > 0 || sessions.length > 0) && (
               <Button onClick={resetFilters} variant="secondary" size="sm">
                 {t('workouts.resetFilters')}
               </Button>
             )}
+            <Button onClick={handleOpenCreateSessionModal} variant="secondary" size="sm" className="gap-1">
+              <Layers className="w-4 h-4 text-amber-400" />
+              <span>{t('workouts.complexSession')}</span>
+            </Button>
             <Button onClick={handleOpenCreateModal} variant="primary" size="sm">
               <Plus className="w-4 h-4 mr-1" />
               <span>{t('workouts.logWorkout')}</span>
@@ -407,7 +581,7 @@ export const WorkoutsPage: React.FC = () => {
         </Card>
       ) : (
         <div className="space-y-8">
-          {groupedWorkouts.map((group) => (
+          {groupedFeed.map((group) => (
             <section key={group.dateKey} className="space-y-3">
               {/* Date Group Heading Banner */}
               <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2">
@@ -431,14 +605,23 @@ export const WorkoutsPage: React.FC = () => {
 
               {/* Workouts Grid for this date */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {group.items.map((workout) => (
-                  <WorkoutCard
-                    key={workout.id}
-                    workout={workout}
-                    onEdit={handleOpenEditModal}
-                    onDelete={handleOpenDeleteModal}
-                  />
-                ))}
+                {group.items.map((item) =>
+                  item.kind === 'session' ? (
+                    <WorkoutSessionCard
+                      key={item.id}
+                      session={item.data}
+                      onEdit={handleOpenEditSessionModal}
+                      onDelete={handleOpenDeleteSessionModal}
+                    />
+                  ) : (
+                    <WorkoutCard
+                      key={item.id}
+                      workout={item.data}
+                      onEdit={handleOpenEditModal}
+                      onDelete={handleOpenDeleteModal}
+                    />
+                  )
+                )}
               </div>
             </section>
           ))}
@@ -446,7 +629,7 @@ export const WorkoutsPage: React.FC = () => {
           {/* Pagination Controls */}
           <div className="flex items-center justify-between pt-4 border-t border-zinc-800/80 text-xs text-zinc-400">
             <div>
-              {t('workouts.showingRecords', { count: filteredWorkouts.length })}
+              {t('workouts.showingRecords', { count: totalLoadedItemsCount })}
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -457,6 +640,7 @@ export const WorkoutsPage: React.FC = () => {
                   const newSkip = Math.max(0, pagination.skip - pagination.limit);
                   setSkip(newSkip);
                   fetchWorkouts();
+                  fetchSessions();
                 }}
                 className="gap-1 px-3 py-1.5"
               >
@@ -466,11 +650,12 @@ export const WorkoutsPage: React.FC = () => {
               <Button
                 variant="secondary"
                 size="sm"
-                disabled={!pagination.hasMore || isLoading}
+                disabled={filteredSingleWorkouts.length < pagination.limit || isLoading}
                 onClick={() => {
                   const newSkip = pagination.skip + pagination.limit;
                   setSkip(newSkip);
                   fetchWorkouts();
+                  fetchSessions();
                 }}
                 className="gap-1 px-3 py-1.5"
               >
@@ -482,7 +667,7 @@ export const WorkoutsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Create / Edit Workout Modal */}
+      {/* Create / Edit Single Workout Modal */}
       <WorkoutFormModal
         isOpen={isFormModalOpen}
         onClose={() => {
@@ -490,9 +675,13 @@ export const WorkoutsPage: React.FC = () => {
           setWorkoutToEdit(null);
         }}
         workoutToEdit={workoutToEdit}
+        onSuccess={() => {
+          fetchWorkouts(true);
+          fetchSessions();
+        }}
       />
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Single Workout Confirmation Modal */}
       <DeleteWorkoutModal
         isOpen={Boolean(workoutToDelete)}
         onClose={() => setWorkoutToDelete(null)}
@@ -509,6 +698,53 @@ export const WorkoutsPage: React.FC = () => {
           setIsCustomExerciseModalOpen(false);
         }}
       />
+
+      {/* Complex Workout Session Modal */}
+      <WorkoutSessionModal
+        isOpen={isSessionModalOpen}
+        sessionToEdit={sessionToEdit}
+        onClose={() => {
+          setIsSessionModalOpen(false);
+          setSessionToEdit(null);
+        }}
+        onSuccess={() => {
+          fetchWorkouts(true);
+          fetchSessions();
+          useWorkoutStore.setState({
+            successMessage: sessionToEdit
+              ? t('workouts.sessionUpdatedSuccess')
+              : t('workouts.sessionCreatedSuccess'),
+          });
+          setSessionToEdit(null);
+        }}
+      />
+
+      {/* Delete Session Confirmation Modal */}
+      <Modal
+        isOpen={Boolean(sessionToDelete)}
+        onClose={() => setSessionToDelete(null)}
+        title={t('workouts.deleteConfirmTitle')}
+        description={t('workouts.deleteConfirmDesc')}
+      >
+        <div className="flex justify-end items-center gap-3 pt-4 border-t border-zinc-800">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setSessionToDelete(null)}
+            disabled={isDeletingSession}
+          >
+            {t('common.cancel')}
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            isLoading={isDeletingSession}
+            onClick={handleConfirmDeleteSession}
+          >
+            {t('workouts.deleteTitle')}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 };
