@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Layers,
+  Radio,
 } from 'lucide-react';
 import { Workout, isStrengthMetrics, isCardioMetrics } from '@/types/workout';
 import { WorkoutSession } from '@/types/workoutSession';
@@ -30,7 +31,10 @@ import {
   CustomExerciseModal,
   WorkoutSessionModal,
   WorkoutSessionCard,
+  LiveWorkoutBanner,
+  LiveWorkoutModal,
 } from '@/components/workouts';
+import { useLiveWorkoutStore } from '@/store/useLiveWorkoutStore';
 import {
   calculateOneRepMax,
   calculateSetTonnage,
@@ -100,6 +104,29 @@ export const WorkoutsPage: React.FC = () => {
     fetchWorkouts();
     fetchSessions();
   }, [fetchWorkouts, fetchSessions]);
+
+  // Live workout store & draft detection
+  const {
+    draft: liveDraft,
+    checkDraft: checkLiveDraft,
+    startNewWorkout: startNewLiveWorkout,
+    resumeWorkout: resumeLiveWorkout,
+  } = useLiveWorkoutStore();
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      checkLiveDraft(currentUser.id);
+    }
+  }, [currentUser?.id, checkLiveDraft]);
+
+  const handleStartLiveWorkout = () => {
+    if (!currentUser?.id) return;
+    if (liveDraft && liveDraft.userId === currentUser.id) {
+      resumeLiveWorkout();
+    } else {
+      startNewLiveWorkout(currentUser.id, t('liveWorkout.workoutTitleDefault'));
+    }
+  };
 
   // Auto-clear success message after 4 seconds
   useEffect(() => {
@@ -463,7 +490,20 @@ export const WorkoutsPage: React.FC = () => {
             {t('workouts.subtitle')}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          <Button
+            onClick={handleStartLiveWorkout}
+            variant="primary"
+            size="md"
+            className="gap-2 shrink-0 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-black shadow-lg shadow-amber-950/40 border-0"
+          >
+            <Radio className="w-4 h-4 text-zinc-950 animate-pulse" />
+            <span>
+              {liveDraft && liveDraft.userId === currentUser?.id
+                ? t('liveWorkout.resumeLiveWorkout')
+                : t('liveWorkout.startLiveWorkout')}
+            </span>
+          </Button>
           <Button
             onClick={() => setIsCustomExerciseModalOpen(true)}
             variant="secondary"
@@ -488,6 +528,9 @@ export const WorkoutsPage: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* Live Workout In-Progress Banner */}
+      {currentUser?.id && <LiveWorkoutBanner userId={currentUser.id} />}
 
       {/* Athlete Stats Strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -745,6 +788,17 @@ export const WorkoutsPage: React.FC = () => {
           </Button>
         </div>
       </Modal>
+
+      {/* Live Interactive Workout Modal */}
+      {currentUser?.id && (
+        <LiveWorkoutModal
+          userId={currentUser.id}
+          onSuccess={() => {
+            fetchWorkouts(true);
+            fetchSessions();
+          }}
+        />
+      )}
     </div>
   );
 };

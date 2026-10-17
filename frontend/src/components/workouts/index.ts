@@ -5,4 +5,5 @@ export * from './DeleteWorkoutModal';
 export * from './CustomExerciseModal';
 export * from './WorkoutSessionModal';
 export * from './WorkoutSessionCard';
-
+export * from './LiveWorkoutBanner';
+export * from './LiveWorkoutModal';
