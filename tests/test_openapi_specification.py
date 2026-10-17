@@ -19,14 +19,17 @@ def test_openapi_schema_workout_routes_canonical_prefix() -> None:
 
     assert len(workout_paths) > 0, "No workout routes found in OpenAPI schema"
     for path in workout_paths:
-        assert path.startswith("/api/v1/workouts"), (
-            f"Workout route '{path}' does not use canonical prefix '/api/v1/workouts'"
+        assert path.startswith("/api/v1/workouts") or path.startswith("/api/v1/workout-sessions"), (
+            f"Workout route '{path}' does not use canonical prefix "
+            "'/api/v1/workouts' or '/api/v1/workout-sessions'"
         )
 
     # Verify exact canonical paths present in schema
     assert set(workout_paths) == {
         "/api/v1/workouts",
         "/api/v1/workouts/{workout_id}",
+        "/api/v1/workout-sessions",
+        "/api/v1/workout-sessions/{session_id}",
     }
 
 
