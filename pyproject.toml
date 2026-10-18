@@ -57,3 +57,16 @@ testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 pythonpath = ["."]
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+    "analytics_service*",
+    "leaderboard_service*",
+    "notification_service*",
+    "users_service*",
+    "workout_service*",
+    "shared*",
+]
+exclude = ["frontend*", "tests*", ".github*", "_workspace*"]
+
+
