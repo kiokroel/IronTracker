@@ -6,19 +6,48 @@ import {
   Trophy,
   User,
 } from "lucide-react-native";
-import React from "react";
-import { StyleSheet } from "react-native";
+import React, { useEffect } from "react";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { AnalyticsScreen } from "../screens/AnalyticsScreen";
 import { LeaderboardScreen } from "../screens/LeaderboardScreen";
 import { LiveWorkoutScreen } from "../screens/LiveWorkoutScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { WorkoutsScreen } from "../screens/WorkoutsScreen";
+import { useAuthStore } from "../store/useAuthStore";
 import { colors } from "../theme/colors";
+import { AuthNavigator } from "./AuthNavigator";
 import type { RootTabParamList } from "./types";
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
 export const RootNavigator: React.FC = () => {
+  const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <View style={styles.splashCircle}>
+          <Dumbbell size={48} color={colors.brand.primary} />
+        </View>
+        <Text style={styles.splashTitle}>IronTracker</Text>
+        <ActivityIndicator
+          size="large"
+          color={colors.brand.primary}
+          style={styles.spinner}
+        />
+        <Text style={styles.loadingText}>Проверка сессии...</Text>
+      </View>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <AuthNavigator />;
+  }
+
   return (
     <Tab.Navigator
       initialRouteName="Workouts"
@@ -85,6 +114,38 @@ export const RootNavigator: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: colors.bg.darkest,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
+  splashCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: "rgba(249, 115, 22, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: "rgba(249, 115, 22, 0.4)",
+  },
+  splashTitle: {
+    fontSize: 32,
+    fontWeight: "900",
+    color: colors.text.primary,
+    letterSpacing: -0.5,
+    marginBottom: 24,
+  },
+  spinner: {
+    marginBottom: 12,
+  },
+  loadingText: {
+    fontSize: 13,
+    color: colors.text.secondary,
+  },
   tabBar: {
     backgroundColor: colors.bg.dark,
     borderTopColor: colors.border.subtle,

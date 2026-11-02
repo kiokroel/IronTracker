@@ -13,6 +13,17 @@ export interface TokenResponse {
   email: string;
 }
 
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  email: string;
+  username: string;
+  password: string;
+}
+
 export type ExerciseType = "strength" | "cardio";
 
 export interface ExerciseItem {
