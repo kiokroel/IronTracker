@@ -24,40 +24,72 @@ export interface RegisterRequest {
   password: string;
 }
 
-export type ExerciseType = "strength" | "cardio";
+export type ExerciseCategory = "strength" | "cardio" | "bodyweight";
+export type MuscleGroup =
+  | "chest"
+  | "back"
+  | "legs"
+  | "shoulders"
+  | "arms"
+  | "core"
+  | "full_body";
+export type Equipment =
+  | "barbell"
+  | "dumbbell"
+  | "machine"
+  | "cable"
+  | "bodyweight"
+  | "other";
 
-export interface ExerciseItem {
+export interface Exercise {
   id: string;
   name: string;
-  muscle_group: string;
-  exercise_type: ExerciseType;
-  equipment?: string;
+  category: ExerciseCategory;
+  target_muscle_groups: MuscleGroup[];
+  equipment: Equipment;
   is_custom: boolean;
+  user_id?: string | null;
+  created_at: string;
 }
 
-export interface ExerciseSet {
+export interface ExerciseCreateRequest {
+  name: string;
+  category: ExerciseCategory;
+  target_muscle_groups: MuscleGroup[];
+  equipment: Equipment;
+}
+
+export interface WorkoutSessionSet {
   set_number: number;
-  weight_kg: number;
+  weight: number;
   reps: number;
-  rpe?: number;
-  is_warmup?: boolean;
+  rpe?: number | null;
+  is_warmup: boolean;
 }
 
-export interface WorkoutSessionExercise {
-  exercise_id: string;
+export interface WorkoutSessionExerciseItem {
+  exercise_id?: string | null;
   exercise_name: string;
-  sets: ExerciseSet[];
+  exercise_type: ExerciseCategory;
+  sets: WorkoutSessionSet[];
+  distance_km?: number | null;
+  duration_minutes?: number | null;
+  heart_rate?: number | null;
+  calories_burned?: number | null;
+  notes?: string | null;
 }
 
-export interface WorkoutSession {
+export interface WorkoutSessionResponse {
   id: string;
   user_id: string;
-  title: string;
-  started_at: string;
-  completed_at?: string;
-  duration_seconds?: number;
-  exercises: WorkoutSessionExercise[];
-  total_tonnage_kg: number;
+  title?: string | null;
+  date?: string | null;
+  duration_minutes?: number | null;
+  exercises: WorkoutSessionExerciseItem[];
+  total_tonnage: number;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface LeaderboardEntry {
