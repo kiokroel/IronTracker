@@ -1,4 +1,11 @@
-import { Globe, LogOut, ShieldCheck, User } from "lucide-react-native";
+import {
+  Calendar,
+  Globe,
+  LogOut,
+  Mail,
+  ShieldCheck,
+  User,
+} from "lucide-react-native";
 import React, { useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { getApiBaseUrl, setApiBaseUrl } from "../api/client";
@@ -6,10 +13,12 @@ import { Button } from "../components/common/Button";
 import { Card } from "../components/common/Card";
 import { Header } from "../components/common/Header";
 import { Input } from "../components/common/Input";
+import { useAuthStore } from "../store/useAuthStore";
 import { colors } from "../theme/colors";
 
 export const ProfileScreen: React.FC = () => {
   const [apiUrl, setApiUrl] = useState(getApiBaseUrl());
+  const { user, logout, isLoading } = useAuthStore();
 
   const handleSaveApiUrl = () => {
     if (!apiUrl.trim().startsWith("http")) {
@@ -19,6 +28,31 @@ export const ProfileScreen: React.FC = () => {
     setApiBaseUrl(apiUrl.trim());
     Alert.alert("Успешно", `Базовый адрес API обновлен на:\n${apiUrl.trim()}`);
   };
+
+  const handleLogout = () => {
+    Alert.alert(
+      "Выход из аккаунта",
+      "Вы уверены, что хотите завершить текущую сессию?",
+      [
+        { text: "Отмена", style: "cancel" },
+        {
+          text: "Выйти",
+          style: "destructive",
+          onPress: async () => {
+            await logout();
+          },
+        },
+      ]
+    );
+  };
+
+  const formattedDate = user?.created_at
+    ? new Date(user.created_at).toLocaleDateString("ru-RU", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "Недавно";
 
   return (
     <View style={styles.screen}>
@@ -34,12 +68,23 @@ export const ProfileScreen: React.FC = () => {
           <View style={styles.avatarCircle}>
             <User size={36} color={colors.brand.primary} />
           </View>
-          <Text style={styles.username}>Демо Атлет</Text>
-          <Text style={styles.userEmail}>athlete@irontracker.io</Text>
+          <Text style={styles.username}>{user?.username || "Атлет"}</Text>
+          <Text style={styles.userEmail}>{user?.email || "athlete@irontracker.io"}</Text>
 
           <View style={styles.statusBadge}>
             <ShieldCheck size={14} color={colors.status.success} />
-            <Text style={styles.statusText}>JWT Авторизован</Text>
+            <Text style={styles.statusText}>JWT Сессия активна</Text>
+          </View>
+
+          <View style={styles.detailsRow}>
+            <View style={styles.detailItem}>
+              <Mail size={14} color={colors.text.secondary} />
+              <Text style={styles.detailText}>{user?.email}</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Calendar size={14} color={colors.text.secondary} />
+              <Text style={styles.detailText}>В клубе с {formattedDate}</Text>
+            </View>
           </View>
         </Card>
 
@@ -74,7 +119,8 @@ export const ProfileScreen: React.FC = () => {
         <Button
           title="Выйти из аккаунта"
           variant="outline"
-          onPress={() => {}}
+          onPress={handleLogout}
+          loading={isLoading}
           style={styles.logoutBtn}
           icon={<LogOut size={16} color={colors.brand.primary} />}
         />
@@ -123,12 +169,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,
+    marginBottom: 16,
   },
   statusText: {
     fontSize: 11,
     fontWeight: "600",
     color: colors.status.success,
     marginLeft: 6,
+  },
+  detailsRow: {
+    width: "100%",
+    borderTopWidth: 1,
+    borderTopColor: colors.border.subtle,
+    paddingTop: 12,
+    marginTop: 4,
+  },
+  detailItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 4,
+  },
+  detailText: {
+    fontSize: 12,
+    color: colors.text.secondary,
+    marginLeft: 8,
   },
   sectionHeader: {
     fontSize: 12,
