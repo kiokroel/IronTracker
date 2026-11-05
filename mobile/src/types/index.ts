@@ -172,4 +172,24 @@ export interface PersonalRecordsSummary {
   totalWorkingSetsCount: number;
 }
 
+export interface NetworkState {
+  isConnected: boolean | null;
+  isInternetReachable: boolean | null;
+}
+
+export interface QueuedWorkoutSession {
+  id: string;
+  userId: string;
+  data: WorkoutSessionCreate;
+  createdAt: string;
+  retryCount: number;
+  lastError?: string | null;
+}
+
+export interface SyncProcessResult {
+  syncedCount: number;
+  failedCount: number;
+  remainingCount: number;
+}
+
 export * from "./liveWorkout";

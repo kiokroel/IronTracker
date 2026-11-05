@@ -14,7 +14,9 @@ import { LeaderboardScreen } from "../screens/LeaderboardScreen";
 import { LiveWorkoutScreen } from "../screens/LiveWorkoutScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { WorkoutsScreen } from "../screens/WorkoutsScreen";
+import { OfflineBanner } from "../components/common/OfflineBanner";
 import { useAuthStore } from "../store/useAuthStore";
+import { useNetworkStore } from "../store/useNetworkStore";
 import { colors } from "../theme/colors";
 import { AuthNavigator } from "./AuthNavigator";
 import type { RootTabParamList } from "./types";
@@ -22,12 +24,22 @@ import type { RootTabParamList } from "./types";
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
 export const RootNavigator: React.FC = () => {
-  const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
+  const { user, isAuthenticated, isLoading, checkAuth } = useAuthStore();
+  const initializeNetwork = useNetworkStore((state) => state.initialize);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      const unsubscribe = initializeNetwork(user?.id);
+      return () => {
+        unsubscribe();
+      };
+    }
+  }, [isAuthenticated, user?.id, initializeNetwork]);
 
   if (isLoading) {
     return (
@@ -51,77 +63,84 @@ export const RootNavigator: React.FC = () => {
   }
 
   return (
-    <Tab.Navigator
-      initialRouteName="Workouts"
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: [
-          styles.tabBar,
-          {
-            height: 56 + Math.max(insets.bottom, 8),
-            paddingBottom: Math.max(insets.bottom, 6),
-          },
-        ],
-        tabBarActiveTintColor: colors.brand.primary,
-        tabBarInactiveTintColor: colors.text.muted,
-        tabBarLabelStyle: styles.tabLabel,
-      }}
-    >
-      <Tab.Screen
-        name="Workouts"
-        component={WorkoutsScreen}
-        options={{
-          tabBarLabel: "Дневник",
-          tabBarIcon: ({ color, size }) => (
-            <Dumbbell size={size} color={color} />
-          ),
+    <View style={styles.rootContainer}>
+      <OfflineBanner />
+      <Tab.Navigator
+        initialRouteName="Workouts"
+        screenOptions={{
+          headerShown: false,
+          tabBarStyle: [
+            styles.tabBar,
+            {
+              height: 56 + Math.max(insets.bottom, 8),
+              paddingBottom: Math.max(insets.bottom, 6),
+            },
+          ],
+          tabBarActiveTintColor: colors.brand.primary,
+          tabBarInactiveTintColor: colors.text.muted,
+          tabBarLabelStyle: styles.tabLabel,
         }}
-      />
-      <Tab.Screen
-        name="Live"
-        component={LiveWorkoutScreen}
-        options={{
-          tabBarLabel: "Live",
-          tabBarIcon: ({ color, size }) => (
-            <Flame size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Leaderboard"
-        component={LeaderboardScreen}
-        options={{
-          tabBarLabel: "Лидерборд",
-          tabBarIcon: ({ color, size }) => (
-            <Trophy size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Analytics"
-        component={AnalyticsScreen}
-        options={{
-          tabBarLabel: "Аналитика",
-          tabBarIcon: ({ color, size }) => (
-            <LineChart size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{
-          tabBarLabel: "Профиль",
-          tabBarIcon: ({ color, size }) => (
-            <User size={size} color={color} />
-          ),
-        }}
-      />
-    </Tab.Navigator>
+      >
+        <Tab.Screen
+          name="Workouts"
+          component={WorkoutsScreen}
+          options={{
+            tabBarLabel: "Дневник",
+            tabBarIcon: ({ color, size }) => (
+              <Dumbbell size={size} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Live"
+          component={LiveWorkoutScreen}
+          options={{
+            tabBarLabel: "Live",
+            tabBarIcon: ({ color, size }) => (
+              <Flame size={size} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Leaderboard"
+          component={LeaderboardScreen}
+          options={{
+            tabBarLabel: "Лидерборд",
+            tabBarIcon: ({ color, size }) => (
+              <Trophy size={size} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Analytics"
+          component={AnalyticsScreen}
+          options={{
+            tabBarLabel: "Аналитика",
+            tabBarIcon: ({ color, size }) => (
+              <LineChart size={size} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{
+            tabBarLabel: "Профиль",
+            tabBarIcon: ({ color, size }) => (
+              <User size={size} color={color} />
+            ),
+          }}
+        />
+      </Tab.Navigator>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  rootContainer: {
+    flex: 1,
+    backgroundColor: colors.bg.darkest,
+  },
   loadingContainer: {
     flex: 1,
     backgroundColor: colors.bg.darkest,

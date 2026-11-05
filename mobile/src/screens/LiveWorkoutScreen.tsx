@@ -34,8 +34,11 @@ import { createWorkoutSession } from "../api/workouts";
 import { Button } from "../components/common/Button";
 import { Card } from "../components/common/Card";
 import { Header } from "../components/common/Header";
+import { checkConnection } from "../services/network";
+import { enqueueWorkoutSession } from "../services/syncQueue";
 import { useAuthStore } from "../store/useAuthStore";
 import { useLiveWorkoutStore } from "../store/useLiveWorkoutStore";
+import { useNetworkStore } from "../store/useNetworkStore";
 import { colors } from "../theme/colors";
 import type {
   Exercise,
@@ -190,7 +193,7 @@ export const LiveWorkoutScreen: React.FC = () => {
     );
   };
 
-  // Handle saving completed session to backend
+  // Handle saving completed session to backend or offline sync queue
   const handleSaveToBackend = async () => {
     if (!draft && !activeSummary) return;
 
@@ -200,27 +203,66 @@ export const LiveWorkoutScreen: React.FC = () => {
         throw new Error("Черновик тренировки не найден");
       }
 
+      const effectiveUserId = user?.id || draft.user_id || undefined;
+
       // Convert complete draft to WorkoutSessionCreate DTO without any truncation
       const payload: WorkoutSessionCreate = draftToWorkoutSessionCreate(
         draft,
         workoutNotes
       );
 
-      // Send complete session to backend (all sets, exercise_id, exercise_type, RPE, is_warmup, notes, title)
-      await createWorkoutSession(payload);
+      // Check current network status
+      const netState = await checkConnection();
+      const isOffline = !netState.isConnected || netState.isInternetReachable === false;
 
-      // Clear draft strictly AFTER successful HTTP 201 Created from backend
-      await clearDraft(user?.id || draft.user_id);
+      if (isOffline) {
+        // Enqueue into offline sync queue immediately
+        await enqueueWorkoutSession(payload, effectiveUserId);
+        await clearDraft(effectiveUserId);
+        await useNetworkStore.getState().refreshQueueCount(effectiveUserId);
 
-      Alert.alert("Успешно!", "Тренировка сохранена в дневнике IronTracker.");
-      setFinishModalVisible(false);
-      clearSummary();
-      setActiveSummary(null);
-      setWorkoutNotes("");
+        Alert.alert(
+          "Тренировка сохранена локально",
+          "Тренировка сохранена локально и будет синхронизирована при появлении связи."
+        );
+        setFinishModalVisible(false);
+        clearSummary();
+        setActiveSummary(null);
+        setWorkoutNotes("");
+        return;
+      }
+
+      // Online: attempt to create session on backend
+      try {
+        await createWorkoutSession(payload);
+
+        // Clear draft strictly AFTER successful HTTP 201 Created from backend
+        await clearDraft(effectiveUserId);
+
+        Alert.alert("Успешно!", "Тренировка сохранена в дневнике IronTracker.");
+        setFinishModalVisible(false);
+        clearSummary();
+        setActiveSummary(null);
+        setWorkoutNotes("");
+      } catch {
+        // If network request failed during send, gracefully fallback to offline sync queue
+        await enqueueWorkoutSession(payload, effectiveUserId);
+        await clearDraft(effectiveUserId);
+        await useNetworkStore.getState().refreshQueueCount(effectiveUserId);
+
+        Alert.alert(
+          "Тренировка сохранена локально",
+          "Связь с сервером прервалась. Тренировка сохранена локально и будет синхронизирована при появлении связи."
+        );
+        setFinishModalVisible(false);
+        clearSummary();
+        setActiveSummary(null);
+        setWorkoutNotes("");
+      }
     } catch {
       Alert.alert(
-        "Ошибка синхронизации",
-        "Не удалось сохранить тренировку на сервере. Черновик сохранен локально — вы можете повторить отправку."
+        "Ошибка сохранения",
+        "Не удалось подготовить или сохранить тренировку. Попробуйте еще раз."
       );
     } finally {
       setSavingSession(false);
