@@ -1,4 +1,4 @@
-import type { WorkoutSessionResponse } from "../types";
+import type { WorkoutSessionCreate, WorkoutSessionResponse } from "../types";
 import apiClient from "./client";
 
 export async function fetchWorkoutSessions(
@@ -19,6 +19,16 @@ export async function fetchWorkoutSessionById(
 ): Promise<WorkoutSessionResponse> {
   const response = await apiClient.get<WorkoutSessionResponse>(
     `/workout-sessions/${id}`
+  );
+  return response.data;
+}
+
+export async function createWorkoutSession(
+  data: WorkoutSessionCreate
+): Promise<WorkoutSessionResponse> {
+  const response = await apiClient.post<WorkoutSessionResponse>(
+    "/workout-sessions",
+    data
   );
   return response.data;
 }

@@ -3,9 +3,10 @@ import apiClient from "./client";
 import {
   fetchWorkoutSessions,
   fetchWorkoutSessionById,
+  createWorkoutSession,
   deleteWorkoutSession,
 } from "./workouts";
-import type { WorkoutSessionResponse } from "../types";
+import type { WorkoutSessionCreate, WorkoutSessionResponse } from "../types";
 
 vi.mock("./client", () => ({
   default: {
@@ -113,6 +114,57 @@ describe("Workouts API", () => {
 
       await expect(fetchWorkoutSessionById("session-999")).rejects.toThrow("Not Found");
       expect(apiClient.get).toHaveBeenCalledWith("/workout-sessions/session-999");
+    });
+  });
+
+  describe("createWorkoutSession", () => {
+    it("calls POST /workout-sessions with payload and returns created session", async () => {
+      const payload: WorkoutSessionCreate = {
+        title: "Evening Session",
+        duration_minutes: 45,
+        exercises: [
+          {
+            exercise_id: "ex-1",
+            exercise_name: "Squats",
+            exercise_type: "strength",
+            sets: [
+              {
+                set_number: 1,
+                weight: 120,
+                reps: 5,
+                rpe: 8,
+                is_warmup: false,
+              },
+            ],
+          },
+        ],
+      };
+
+      vi.mocked(apiClient.post).mockResolvedValueOnce({
+        data: {
+          ...mockSession,
+          title: "Evening Session",
+        },
+      });
+
+      const result = await createWorkoutSession(payload);
+
+      expect(apiClient.post).toHaveBeenCalledTimes(1);
+      expect(apiClient.post).toHaveBeenCalledWith("/workout-sessions", payload);
+      expect(result.title).toBe("Evening Session");
+    });
+
+    it("propagates error when POST /workout-sessions fails", async () => {
+      const error = new Error("Validation Error");
+      vi.mocked(apiClient.post).mockRejectedValueOnce(error);
+
+      await expect(
+        createWorkoutSession({
+          title: "Invalid",
+          exercises: [],
+        })
+      ).rejects.toThrow("Validation Error");
+      expect(apiClient.post).toHaveBeenCalledTimes(1);
     });
   });
 
