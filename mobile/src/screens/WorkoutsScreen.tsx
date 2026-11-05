@@ -7,6 +7,7 @@ import {
   Dumbbell,
   Flame,
   Plus,
+  RefreshCw,
   Weight,
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
@@ -23,12 +24,14 @@ import { fetchWorkoutSessions } from "../api/workouts";
 import { Button } from "../components/common/Button";
 import { Card } from "../components/common/Card";
 import { Header } from "../components/common/Header";
+import { useNetworkStore } from "../store/useNetworkStore";
 import { colors } from "../theme/colors";
 import type { WorkoutSessionResponse } from "../types";
 import { formatWeight } from "../utils/fitness";
 import { ExerciseCatalogModal } from "./catalog/ExerciseCatalogModal";
 
 export const WorkoutsScreen: React.FC = () => {
+  const { queueCount, isSyncing, syncNow } = useNetworkStore();
   const [sessions, setSessions] = useState<WorkoutSessionResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -146,6 +149,32 @@ export const WorkoutsScreen: React.FC = () => {
           data={sessions}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.content}
+          ListHeaderComponent={
+            queueCount > 0 ? (
+              <Card style={styles.syncQueueCard}>
+                <View style={styles.syncQueueHeader}>
+                  <RefreshCw size={16} color={colors.brand.primary} />
+                  <Text style={styles.syncQueueTitle}>
+                    В очереди: {queueCount} неотправленных сессий
+                  </Text>
+                </View>
+                <Text style={styles.syncQueueSubtext}>
+                  Данные сохранены локально и ожидают выгрузки на сервер
+                </Text>
+                <Button
+                  title={isSyncing ? "Синхронизация..." : "Синхронизировать сейчас"}
+                  variant="primary"
+                  size="sm"
+                  loading={isSyncing}
+                  onPress={async () => {
+                    await syncNow();
+                    await loadSessions();
+                  }}
+                  style={styles.syncQueueBtn}
+                />
+              </Card>
+            ) : undefined
+          }
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -468,5 +497,31 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     textAlign: "center",
     marginTop: 4,
+  },
+  syncQueueCard: {
+    marginBottom: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "rgba(249, 115, 22, 0.4)",
+    backgroundColor: "rgba(249, 115, 22, 0.08)",
+  },
+  syncQueueHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  syncQueueTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.brand.primary,
+    marginLeft: 8,
+  },
+  syncQueueSubtext: {
+    fontSize: 12,
+    color: colors.text.secondary,
+    marginBottom: 12,
+  },
+  syncQueueBtn: {
+    alignSelf: "flex-start",
   },
 });

@@ -17,6 +17,7 @@ export default defineConfig({
       "expo-haptics": "./src/utils/test/expo-haptics-mock.ts",
       "expo-av": "./src/utils/test/expo-av-mock.ts",
       "@react-native-async-storage/async-storage": "./src/utils/test/async-storage-mock.ts",
+      "@react-native-community/netinfo": "./src/utils/test/netinfo-mock.ts",
     },
   },
 });
