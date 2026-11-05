@@ -45,6 +45,34 @@ export function getAvailableExerciseNames(
 }
 
 /**
+ * Checks whether an exercise name matches a query string.
+ * Supports exact equality, substring matching, and multi-word token overlap
+ * (e.g. query "Жим лежа" matches "Жим штанги лежа").
+ */
+export function isExerciseMatch(exerciseName?: string | null, query?: string | null): boolean {
+  if (!exerciseName || !query) return false;
+  const nameNorm = exerciseName.trim().toLowerCase();
+  const queryNorm = query.trim().toLowerCase();
+
+  if (nameNorm === queryNorm || nameNorm.includes(queryNorm) || queryNorm.includes(nameNorm)) {
+    return true;
+  }
+
+  // Token-level matching (e.g. "жим лежа" tokens ["жим", "лежа"] in "жим штанги лежа")
+  const queryTokens = queryNorm.split(/\s+/).filter((t) => t.length >= 3);
+  if (queryTokens.length > 0 && queryTokens.every((token) => nameNorm.includes(token))) {
+    return true;
+  }
+
+  const nameTokens = nameNorm.split(/\s+/).filter((t) => t.length >= 3);
+  if (nameTokens.length > 0 && nameTokens.every((token) => queryNorm.includes(token))) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Computes the chronological progression of 1RM for a specific exercise query.
  * For each session containing matching exercise, extracts the peak 1RM set.
  */
@@ -56,7 +84,6 @@ export function extractOneRepMaxHistory(
     return [];
   }
 
-  const queryLower = exerciseQuery.trim().toLowerCase();
   const points: OneRepMaxPoint[] = [];
 
   for (const session of sessions) {
@@ -64,7 +91,7 @@ export function extractOneRepMaxHistory(
     if (!rawDate) continue;
 
     const matchingExercises = (session.exercises || []).filter((ex) =>
-      ex.exercise_name?.toLowerCase().includes(queryLower)
+      isExerciseMatch(ex.exercise_name, exerciseQuery)
     );
 
     if (matchingExercises.length === 0) continue;

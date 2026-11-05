@@ -1,8 +1,24 @@
 const http = require("http");
+const path = require("path");
 const { getDefaultConfig } = require("expo/metro-config");
 const { withNativeWind } = require("nativewind/metro");
 
 const config = getDefaultConfig(__dirname);
+
+// Safe resolution for expo-av in Expo Go (where ExponentAV native binary is absent)
+const defaultResolveRequest = config.resolver.resolveRequest;
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName === "expo-av") {
+    return {
+      filePath: path.resolve(__dirname, "src/services/expo-av-safe.js"),
+      type: "sourceFile",
+    };
+  }
+  if (defaultResolveRequest) {
+    return defaultResolveRequest(context, moduleName, platform);
+  }
+  return context.resolveRequest(context, moduleName, platform);
+};
 
 // Proxy /api/ requests to local Caddy API Gateway (Docker port 80)
 config.server = {

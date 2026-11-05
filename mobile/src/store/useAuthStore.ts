@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { getCurrentUser, loginUser, registerUser } from "../api/auth";
-import { setAuthToken } from "../api/client";
+import { setAuthToken, setOnUnauthorizedCallback } from "../api/client";
 import {
   clearAuthSession,
   getAuthToken,
@@ -53,7 +53,20 @@ export const useAuthStore = create<AuthState>((set) => ({
         const freshUser = await getCurrentUser();
         user = freshUser;
         await saveUserData(freshUser);
-      } catch {
+      } catch (err: unknown) {
+        const axiosErr = err as { response?: { status?: number } };
+        if (axiosErr?.response?.status === 401) {
+          await clearAuthSession();
+          setAuthToken(null);
+          set({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: "Сессия истекла. Пожалуйста, выполните вход.",
+          });
+          return;
+        }
         // If offline or network error, keep cached user
       }
 
@@ -178,3 +191,15 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   clearError: () => set({ error: null }),
 }));
+
+setOnUnauthorizedCallback(async () => {
+  await clearAuthSession();
+  setAuthToken(null);
+  useAuthStore.setState({
+    user: null,
+    token: null,
+    isAuthenticated: false,
+    isLoading: false,
+    error: "Сессия истекла. Пожалуйста, выполните вход повторно.",
+  });
+});

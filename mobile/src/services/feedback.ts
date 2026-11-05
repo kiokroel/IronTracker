@@ -13,7 +13,7 @@ export async function triggerSetCompletedHaptic(): Promise<void> {
     if (Haptics && typeof Haptics.impactAsync === "function") {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     }
-  } catch (error) {
+  } catch {
     // Haptics unavailable on simulator/web or permission denied
   }
 }
@@ -30,7 +30,7 @@ export async function triggerRestFinishedHaptic(): Promise<void> {
     if (Haptics && typeof Haptics.impactAsync === "function") {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-  } catch (error) {
+  } catch {
     // Haptics unavailable
   }
 }
@@ -43,31 +43,30 @@ export async function triggerButtonHaptic(): Promise<void> {
     if (Haptics && typeof Haptics.impactAsync === "function") {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-  } catch (error) {
+  } catch {
     // Haptics unavailable
   }
 }
 
 /**
- * Plays an audio beep when rest countdown completes.
+ * Plays an audio beep when rest countdown completes (if audio module is supported).
  */
 export async function playRestCompleteSound(): Promise<void> {
   try {
-    if (Audio && Audio.Sound) {
-      // In mobile app, we can play a short tone; wrapped safely
+    if (Audio && Audio.Sound && typeof Audio.Sound.createAsync === "function") {
       const { sound } = await Audio.Sound.createAsync(
         { uri: "https://actions.google.com/sounds/v1/alarms/beep_short.ogg" },
         { shouldPlay: true, volume: 1.0 }
       );
       if (sound && typeof sound.setOnPlaybackStatusUpdate === "function") {
-        sound.setOnPlaybackStatusUpdate((status) => {
-          if ("didJustFinish" in status && status.didJustFinish) {
+        sound.setOnPlaybackStatusUpdate((status: any) => {
+          if (status && "didJustFinish" in status && status.didJustFinish) {
             sound.unloadAsync().catch(() => {});
           }
         });
       }
     }
-  } catch (error) {
+  } catch {
     // Audio playback fallback - haptic feedback is independent and reliable
   }
 }

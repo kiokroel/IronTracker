@@ -29,6 +29,7 @@ import { colors } from "../theme/colors";
 import type { WorkoutSessionResponse } from "../types";
 import { formatWeight } from "../utils/fitness";
 import { ExerciseCatalogModal } from "./catalog/ExerciseCatalogModal";
+import { ManualWorkoutModal } from "../components/workouts/ManualWorkoutModal";
 
 export const WorkoutsScreen: React.FC = () => {
   const { queueCount, isSyncing, syncNow } = useNetworkStore();
@@ -39,6 +40,7 @@ export const WorkoutsScreen: React.FC = () => {
     new Set()
   );
   const [catalogVisible, setCatalogVisible] = useState(false);
+  const [manualModalVisible, setManualModalVisible] = useState(false);
 
   const loadSessions = async () => {
     try {
@@ -128,14 +130,24 @@ export const WorkoutsScreen: React.FC = () => {
         title="Дневник тренировок"
         subtitle="История и анализ завершенных сессий"
         rightAction={
-          <TouchableOpacity
-            onPress={() => setCatalogVisible(true)}
-            style={styles.catalogButton}
-            activeOpacity={0.7}
-          >
-            <BookOpen size={18} color={colors.brand.primary} />
-            <Text style={styles.catalogButtonText}>Каталог</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              onPress={() => setCatalogVisible(true)}
+              style={styles.catalogButton}
+              activeOpacity={0.7}
+            >
+              <BookOpen size={15} color={colors.brand.primary} />
+              <Text style={styles.catalogButtonText}>Каталог</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setManualModalVisible(true)}
+              style={styles.recordHeaderBtn}
+              activeOpacity={0.7}
+            >
+              <Plus size={15} color="#000" />
+              <Text style={styles.recordHeaderBtnText}>Записать</Text>
+            </TouchableOpacity>
+          </View>
         }
       />
 
@@ -150,30 +162,51 @@ export const WorkoutsScreen: React.FC = () => {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.content}
           ListHeaderComponent={
-            queueCount > 0 ? (
-              <Card style={styles.syncQueueCard}>
-                <View style={styles.syncQueueHeader}>
-                  <RefreshCw size={16} color={colors.brand.primary} />
-                  <Text style={styles.syncQueueTitle}>
-                    В очереди: {queueCount} неотправленных сессий
+            <View>
+              {queueCount > 0 && (
+                <Card style={styles.syncQueueCard}>
+                  <View style={styles.syncQueueHeader}>
+                    <RefreshCw size={16} color={colors.brand.primary} />
+                    <Text style={styles.syncQueueTitle}>
+                      В очереди: {queueCount} неотправленных сессий
+                    </Text>
+                  </View>
+                  <Text style={styles.syncQueueSubtext}>
+                    Данные сохранены локально и ожидают выгрузки на сервер
                   </Text>
+                  <Button
+                    title={isSyncing ? "Синхронизация..." : "Синхронизировать сейчас"}
+                    variant="primary"
+                    size="sm"
+                    loading={isSyncing}
+                    onPress={async () => {
+                      await syncNow();
+                      await loadSessions();
+                    }}
+                    style={styles.syncQueueBtn}
+                  />
+                </Card>
+              )}
+
+              {/* Quick Record Banner */}
+              <Card style={styles.quickRecordCard}>
+                <View style={styles.quickRecordContent}>
+                  <View style={styles.quickRecordTextCol}>
+                    <Text style={styles.quickRecordTitle}>Записать тренировку</Text>
+                    <Text style={styles.quickRecordSubtitle}>
+                      Внесите подходы и веса вручную без запуска таймера
+                    </Text>
+                  </View>
+                  <Button
+                    title="+ Записать"
+                    variant="primary"
+                    size="sm"
+                    onPress={() => setManualModalVisible(true)}
+                    style={styles.quickRecordBtn}
+                  />
                 </View>
-                <Text style={styles.syncQueueSubtext}>
-                  Данные сохранены локально и ожидают выгрузки на сервер
-                </Text>
-                <Button
-                  title={isSyncing ? "Синхронизация..." : "Синхронизировать сейчас"}
-                  variant="primary"
-                  size="sm"
-                  loading={isSyncing}
-                  onPress={async () => {
-                    await syncNow();
-                    await loadSessions();
-                  }}
-                  style={styles.syncQueueBtn}
-                />
               </Card>
-            ) : undefined
+            </View>
           }
           refreshControl={
             <RefreshControl
@@ -294,20 +327,34 @@ export const WorkoutsScreen: React.FC = () => {
                 <Dumbbell size={36} color={colors.brand.primary} />
                 <Text style={styles.emptyTitle}>Тренировок пока нет</Text>
                 <Text style={styles.emptySubtitle}>
-                  Проведите тренировку в режиме Live или откройте каталог упражнений
+                  Запишите выполненную тренировку вручную или откройте каталог упражнений
                 </Text>
-                <Button
-                  title="Открыть каталог"
-                  variant="secondary"
-                  onPress={() => setCatalogVisible(true)}
-                  style={{ marginTop: 16, width: "100%" }}
-                  icon={<BookOpen size={16} color={colors.text.primary} />}
-                />
+                <View style={{ width: "100%", gap: 10, marginTop: 16 }}>
+                  <Button
+                    title="+ Записать тренировку"
+                    variant="primary"
+                    onPress={() => setManualModalVisible(true)}
+                    icon={<Plus size={16} color="#000" />}
+                  />
+                  <Button
+                    title="Открыть каталог"
+                    variant="secondary"
+                    onPress={() => setCatalogVisible(true)}
+                    icon={<BookOpen size={16} color={colors.text.primary} />}
+                  />
+                </View>
               </View>
             </Card>
           }
         />
       )}
+
+      {/* Manual Workout Modal */}
+      <ManualWorkoutModal
+        visible={manualModalVisible}
+        onClose={() => setManualModalVisible(false)}
+        onSuccess={loadSessions}
+      />
 
       {/* Exercise Catalog Modal */}
       <ExerciseCatalogModal
@@ -326,6 +373,52 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingBottom: 40,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  recordHeaderBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.brand.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  recordHeaderBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#000",
+    marginLeft: 4,
+  },
+  quickRecordCard: {
+    marginBottom: 16,
+    padding: 14,
+    backgroundColor: colors.bg.card,
+  },
+  quickRecordContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  quickRecordTextCol: {
+    flex: 1,
+  },
+  quickRecordTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.text.primary,
+  },
+  quickRecordSubtitle: {
+    fontSize: 12,
+    color: colors.text.secondary,
+    marginTop: 2,
+  },
+  quickRecordBtn: {
+    minWidth: 95,
   },
   catalogButton: {
     flexDirection: "row",
