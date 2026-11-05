@@ -12,6 +12,7 @@ import {
   extractVolumeTrend,
   formatDateShort,
   getAvailableExerciseNames,
+  isExerciseMatch,
 } from "./analytics";
 
 describe("analytics utilities", () => {
@@ -97,6 +98,26 @@ describe("analytics utilities", () => {
       updated_at: "2026-11-01T13:00:00Z",
     },
   ];
+
+  describe("isExerciseMatch", () => {
+    it("matches exact strings case-insensitively", () => {
+      expect(isExerciseMatch("Жим штанги лежа", "жим штанги лежа")).toBe(true);
+      expect(isExerciseMatch("Squat", "squat")).toBe(true);
+    });
+
+    it("matches multi-word queries with word overlap", () => {
+      expect(isExerciseMatch("Жим штанги лежа", "Жим лежа")).toBe(true);
+      expect(isExerciseMatch("Приседания со штангой", "Приседания")).toBe(true);
+      expect(isExerciseMatch("Армейский жим стоя", "Армейский жим")).toBe(true);
+    });
+
+    it("returns false for unrelated exercises", () => {
+      expect(isExerciseMatch("Подтягивания", "Жим лежа")).toBe(false);
+      expect(isExerciseMatch("Становая тяга", "Приседания")).toBe(false);
+      expect(isExerciseMatch(undefined, "Жим")).toBe(false);
+      expect(isExerciseMatch("Жим", null)).toBe(false);
+    });
+  });
 
   describe("formatDateShort", () => {
     it("formats valid ISO date into DD.MM format", () => {

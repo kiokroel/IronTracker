@@ -36,14 +36,15 @@ import {
   extractVolumeTrend,
   formatDateShort,
   getAvailableExerciseNames,
+  isExerciseMatch,
 } from "../utils/analytics";
 import { formatWeight } from "../utils/fitness";
 
 const DEFAULT_EXERCISES = [
-  "Жим лежа",
-  "Приседания",
+  "Жим штанги лежа",
+  "Приседания со штангой",
   "Становая тяга",
-  "Армейский жим",
+  "Армейский жим стоя",
 ];
 
 export const AnalyticsScreen: React.FC = () => {
@@ -51,7 +52,7 @@ export const AnalyticsScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedExercise, setSelectedExercise] = useState<string>("Жим лежа");
+  const [selectedExercise, setSelectedExercise] = useState<string>("Жим штанги лежа");
 
   const loadData = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -83,6 +84,22 @@ export const AnalyticsScreen: React.FC = () => {
     const fromHistory = getAvailableExerciseNames(sessions);
     const set = new Set<string>([...DEFAULT_EXERCISES, ...fromHistory]);
     return Array.from(set);
+  }, [sessions]);
+
+  // Auto-align selected exercise with history when sessions load
+  useEffect(() => {
+    const history = getAvailableExerciseNames(sessions);
+    if (history.length > 0) {
+      const hasDirectHistory = history.includes(selectedExercise);
+      if (!hasDirectHistory) {
+        const matchingHistory = history.find((h) => isExerciseMatch(h, selectedExercise));
+        if (matchingHistory) {
+          setSelectedExercise(matchingHistory);
+        } else {
+          setSelectedExercise(history[0]);
+        }
+      }
+    }
   }, [sessions]);
 
   // 1RM progression data for currently selected exercise
