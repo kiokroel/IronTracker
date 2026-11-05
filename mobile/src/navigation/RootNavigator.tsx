@@ -8,6 +8,7 @@ import {
 } from "lucide-react-native";
 import React, { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AnalyticsScreen } from "../screens/AnalyticsScreen";
 import { LeaderboardScreen } from "../screens/LeaderboardScreen";
 import { LiveWorkoutScreen } from "../screens/LiveWorkoutScreen";
@@ -22,6 +23,7 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 
 export const RootNavigator: React.FC = () => {
   const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     checkAuth();
@@ -53,7 +55,13 @@ export const RootNavigator: React.FC = () => {
       initialRouteName="Workouts"
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            height: 56 + Math.max(insets.bottom, 8),
+            paddingBottom: Math.max(insets.bottom, 6),
+          },
+        ],
         tabBarActiveTintColor: colors.brand.primary,
         tabBarInactiveTintColor: colors.text.muted,
         tabBarLabelStyle: styles.tabLabel,
@@ -83,7 +91,7 @@ export const RootNavigator: React.FC = () => {
         name="Leaderboard"
         component={LeaderboardScreen}
         options={{
-          tabBarLabel: "Рейтинг",
+          tabBarLabel: "Лидерборд",
           tabBarIcon: ({ color, size }) => (
             <Trophy size={size} color={color} />
           ),
@@ -150,9 +158,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg.dark,
     borderTopColor: colors.border.subtle,
     borderTopWidth: 1,
-    height: 60,
-    paddingBottom: 8,
-    paddingTop: 8,
+    paddingTop: 6,
   },
   tabLabel: {
     fontSize: 11,

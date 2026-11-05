@@ -31,10 +31,18 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
 
 # typescript
 *.tsbuildinfo
+
+# temporary runner & qr scripts
+runner.js
+make_qr.js
+qr.html
+qr.png
+*.html
 
 # generated native folders
 /ios

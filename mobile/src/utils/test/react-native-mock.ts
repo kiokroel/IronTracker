@@ -5,6 +5,13 @@ export const Platform = {
   },
 };
 
+export const NativeModules = {
+  SourceCode: {
+    scriptURL: undefined,
+  },
+};
+
 export default {
   Platform,
+  NativeModules,
 };

@@ -79,6 +79,14 @@ export interface WorkoutSessionExerciseItem {
   notes?: string | null;
 }
 
+export interface WorkoutSessionCreate {
+  title?: string | null;
+  date?: string | null;
+  duration_minutes?: number | null;
+  exercises: WorkoutSessionExerciseItem[];
+  notes?: string | null;
+}
+
 export interface WorkoutSessionResponse {
   id: string;
   user_id: string;
@@ -98,3 +106,5 @@ export interface LeaderboardEntry {
   total_tonnage: number;
   rank: number;
 }
+
+export * from "./liveWorkout";
