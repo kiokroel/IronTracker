@@ -100,11 +100,76 @@ export interface WorkoutSessionResponse {
   updated_at: string;
 }
 
+export type LeaderboardPeriod = "all" | "month" | "week";
+
 export interface LeaderboardEntry {
-  user_id: string;
-  username: string;
-  total_tonnage: number;
   rank: number;
+  user_id: string;
+  score: number;
+  username?: string;
+  total_tonnage?: number;
+}
+
+export interface LeaderboardResponse {
+  metric: string;
+  total_entries: number;
+  entries: LeaderboardEntry[];
+}
+
+export interface UserRankResponse {
+  user_id: string;
+  rank: number | null;
+  score: number;
+}
+
+export interface OneRepMaxPoint {
+  date: string;
+  formattedDate: string;
+  weight: number;
+  reps: number;
+  oneRepMax: number;
+  formulaBreakdown: {
+    epley: number;
+    brzycki: number;
+    lander: number;
+    wathan: number;
+    average: number;
+  };
+  exerciseName: string;
+}
+
+export interface VolumeTrendPoint {
+  id: string;
+  date: string;
+  formattedDate: string;
+  volume: number;
+  exerciseCount: number;
+  durationMinutes?: number | null;
+  title?: string | null;
+}
+
+export interface PersonalRecordsSummary {
+  bestOneRepMax: {
+    exerciseName: string;
+    weight: number;
+    reps: number;
+    oneRepMax: number;
+    date: string;
+  } | null;
+  maxWeightLifted: {
+    exerciseName: string;
+    weight: number;
+    reps: number;
+    date: string;
+  } | null;
+  maxSessionTonnage: {
+    tonnage: number;
+    date: string;
+    title: string;
+  } | null;
+  totalAllTimeTonnage: number;
+  totalSessionsCount: number;
+  totalWorkingSetsCount: number;
 }
 
 export * from "./liveWorkout";
